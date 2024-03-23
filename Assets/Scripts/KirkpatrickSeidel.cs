@@ -4,7 +4,7 @@ using TMPro;
 using UnityEngine.UI;
 using System.Collections;
 
-public class KirkpatrickSeidelConvexHull : MonoBehaviour 
+public class KirkpatrickSeidelConvexHull : MonoBehaviour
 {
     public class Point
     {
@@ -186,7 +186,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         float pumaxx = points[0].x;
         float pumaxy = points[0].y;
 
-        for(int i=1;i<points.Count;i++)
+        for (int i = 1; i < points.Count; i++)
         {
             if (points[i].x < puminx || (points[i].x == puminx && points[i].y > puminy))
             {
@@ -200,7 +200,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             }
         }
 
-        res.Add(new Point(puminx, puminy)); 
+        res.Add(new Point(puminx, puminy));
         res.Add(new Point(pumaxx, pumaxy));
 
         return res;
@@ -232,7 +232,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         return res;
     }
 
-    void UpperHull(Point pumin, Point pumax, List<Point>points)
+    void UpperHull(Point pumin, Point pumax, List<Point> points)
     {
         points.Sort(new XComparer());
         int n = points.Count;
@@ -265,7 +265,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         T_left.Add(pl);
         T_left.Add(pmin);
 
-        foreach(Point point in points)
+        foreach (Point point in points)
         {
             if (pointPosition(pmin, pl, point) > 0)
             {
@@ -282,11 +282,11 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             }
         }
 
-        if(pl != pmin)
+        if (pl != pmin)
         {
             UpperHull(pmin, pl, T_left);
         }
-        if(pr != pmax)
+        if (pr != pmax)
         {
             UpperHull(pr, pmax, T_right);
         }
@@ -336,7 +336,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         T_right.Add(pmax);
         foreach (Point point in points)
         {
-            if (pointPosition(pmax, pr, point) < 0)
+            if (pointPosition(pr, pmax, point) < 0)
             {
                 T_right.Add(point);
             }
@@ -356,7 +356,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     {
         List<Point> candidates = new List<Point>();
         int n = points.Count;
-        if(n == 2)
+        if (n == 2)
         {
             return new Edge(points[0], points[1]);
         }
@@ -369,18 +369,18 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             candidates.Add(points[0]);
             i++;
         }
-        for(; i<=n-2; i += 2)
+        for (; i <= n - 2; i += 2)
         {
             float x1 = points[i].x;
-            float x2 = points[i+1].x;
+            float x2 = points[i + 1].x;
 
-            if(x1 <= x2)
+            if (x1 <= x2)
             {
                 pairs.Add(new Edge(points[i], points[i + 1]));
             }
             else
             {
-                pairs.Add(new Edge(points[i+1], points[i]));
+                pairs.Add(new Edge(points[i + 1], points[i]));
             }
         }
         for (i = 0; i < pairs.Count; i++)
@@ -455,11 +455,11 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             {
                 if (x < pk.x)
                 {
-                    pk = new Point(x,y);
+                    pk = new Point(x, y);
                 }
                 if (x > pm.x)
                 {
-                    pm = new Point(x,y);
+                    pm = new Point(x, y);
                 }
             }
         }
@@ -705,13 +705,13 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         }
     }
 
-    int partition(List<float>nums, int left, int right, int pivotIndex)
+    int partition(List<float> nums, int left, int right, int pivotIndex)
     {
         float pivotValue = nums[pivotIndex];
         //swap(nums[pivotIndex], nums[right]); // Move pivot to end
 
-        float temp = nums[pivotIndex]; 
-        nums[pivotIndex] = nums[right]; 
+        float temp = nums[pivotIndex];
+        nums[pivotIndex] = nums[right];
         nums[right] = temp;
 
         int storeIndex = left;
