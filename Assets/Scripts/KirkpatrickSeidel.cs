@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections;
+using Unity.VisualScripting;
 
 public class KirkpatrickSeidelConvexHull : MonoBehaviour
 {
@@ -41,30 +42,58 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
                 return 0;
         }
     }
+    public class KsStackObject
+    {
+        public List<Point> points;
+        public bool isUpperHull;
+        public KsStackObject(List<Point> points, bool isUpperHull)
+        {
+            this.points = points;
+            this.isUpperHull = isUpperHull;
+        }
+    }
+    public class PairPointsIndices
+    {
+        public List<Point> points;
+        public List<int> indices;
+        public PairPointsIndices(List<Point> points, List<int> indices)
+        {
+            this.points = points;
+            this.indices = indices;
+        }
+    }
+    Stack<KsStackObject> ksStack = new Stack<KsStackObject>();
 
     [SerializeField] GameObject pointPrefab;
+    [SerializeField] GameObject bigPointPrefab;
     [SerializeField] Material hullMaterial;
+    [SerializeField] Material lineMaterial;
     [SerializeField] float width = 0.1f;
     [SerializeField] TMP_Text statusText;
     [SerializeField] TMP_Text buttonText;
     [SerializeField] Button nextButton;
-    private bool isButtonClickAllowed = true;
+    private bool isButtonClickAllowed = false;
     private bool arePointsEntered = false;
 
 
     private List<Point> points = new List<Point>();
+    private List<Point> invertedPoints = new List<Point>();
     private List<Edge> edges = new List<Edge>();
 
     void Start()
     {
         //points.Add(new Point(-3f, 0f));
         //points.Add(new Point(-1f, 1.5f));
-        //points.Add(new Point(1f, 2f));
-        //points.Add(new Point(3f, 0f));
-        //points.Add(new Point(1, 0));
-        //points.Add(new Point(4, -1));
+        //points.Add(new Point(0.5f, 2f));
+        //points.Add(new Point(3f, 0.5f));
+        //points.Add(new Point(1.5f, 0f));
+        //points.Add(new Point(4f, -1f));
+        //points.Add(new Point(2f, -3f));
 
-        for (int i = 0; i < 5; i++)
+        buttonText.text = "Start";
+        statusText.text = "";
+
+        /*for (int i = 0; i < 5; i++)
         {
             float randomX = Random.Range(-6f, 6f);
             float randomY = Random.Range(-4f, 4f);
@@ -72,29 +101,77 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             randomY = Mathf.Round(randomY * 100f) / 100f;
             points.Add(new Point(randomX, randomY));
             Instantiate(pointPrefab, new Vector3(randomX, randomY, 0), Quaternion.identity);
-        }
+        }*/
 
-        foreach (Point point in points)
+        /*foreach (Point point in points)
         {
-            Debug.Log("(" + point.x + "," + point.y + ")");
-            //Instantiate(pointPrefab, new Vector3(point.x, point.y, 0), Quaternion.identity);
+            //Debug.Log("(" + point.x + "," + point.y + ")");
+            GameObject newPoint = Instantiate(pointPrefab, new Vector3(point.x, point.y, 0), Quaternion.identity);
+            //pointGameObjects.Add(newPoint);
         }
         arePointsEntered = true;
 
-        //StartCoroutine(WaitForPoints());
-    }
+        invertedPoints = ReflectAboutOrigin(points);*/
 
+        StartCoroutine(WaitForPoints());
+
+        /*List<Point> maxMinPoints = findMaxMinX(points);
+
+        Point pumin1 = new Point(maxMinPoints[0].x, maxMinPoints[0].y);
+        Point pumax1 = new Point(maxMinPoints[1].x, maxMinPoints[1].y);
+
+        List<Point> lhPoints = new List<Point>();
+
+        foreach (Point it in points)
+        {
+            if ((it.x == pumin1.x && it.y != pumin1.y) || (it.x == pumax1.x && it.y != pumax1.y))
+            {
+            }
+            else
+                lhPoints.Add(it);
+        }*/
+
+        //ksStack.Push(new KsStackObject(invertedPoints, false));
+        /*Debug.Log("lh points are");
+        foreach(Point p in lhPoints)
+        {
+            Debug.Log(p.x + "," + p.y);
+        }
+
+        List<Point> minMaxPoints = findMinMaxX(points);
+
+        Point pumin = new Point(minMaxPoints[0].x, minMaxPoints[0].y);
+        Point pumax = new Point(minMaxPoints[1].x, minMaxPoints[1].y);
+
+        List<Point> uhPoints = new List<Point>();
+
+        foreach (Point it in points)
+        {
+            if ((it.x == pumin.x && it.y != pumin.y) || (it.x == pumax.x && it.y != pumax.y))
+            {
+            }
+            else
+                uhPoints.Add(it);
+        }*/
+
+        //ksStack.Push(new KsStackObject(points, true));
+    }
+    void Update()
+    {
+        if (buttonClicks > 0)
+            buttonText.text = "Next";
+
+    }
     IEnumerator WaitForPoints()
     {
         while (!arePointsEntered)
         {
             yield return null;
         }
-    }
-
-    void Update()
-    {
-        isButtonClickAllowed = arePointsEntered;
+        invertedPoints = ReflectAboutOrigin(points);
+        ksStack.Push(new KsStackObject(invertedPoints, false));
+        ksStack.Push(new KsStackObject(points, true));
+        isButtonClickAllowed = true;
     }
 
     private GameObject DrawLine(Point startPoint1, Point endPoint1, Material material, float width)
@@ -105,6 +182,24 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         lineRenderer.material = material;
         lineRenderer.startWidth = width;
         lineRenderer.endWidth = width;
+        lineRenderer.sortingOrder = 10;
+
+        Vector3[] positions = { new Vector3(startPoint1.x, startPoint1.y, 0), new Vector3(endPoint1.x, endPoint1.y, 0) };
+        lineRenderer.positionCount = positions.Length;
+        lineRenderer.SetPositions(positions);
+
+        return lineObject;
+    }
+
+    private GameObject DrawLine1(Point startPoint1, Point endPoint1, Material material, float width)
+    {
+        GameObject lineObject = new GameObject("Line");
+        LineRenderer lineRenderer = lineObject.AddComponent<LineRenderer>();
+
+        lineRenderer.material = material;
+        lineRenderer.startWidth = width;
+        lineRenderer.endWidth = width;
+        lineRenderer.sortingOrder = 5;
 
         Vector3[] positions = { new Vector3(startPoint1.x, startPoint1.y, 0), new Vector3(endPoint1.x, endPoint1.y, 0) };
         lineRenderer.positionCount = positions.Length;
@@ -115,13 +210,15 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
 
     void ComputeHull()
     {
-        List<Point> minMaxPoints = findMinMaxX();
+        List<Point> minMaxPoints = new List<Point>();
+            //findMinMaxX(points);
+
 
         Point pumin = new Point(minMaxPoints[0].x, minMaxPoints[0].y);
         Point pumax = new Point(minMaxPoints[1].x, minMaxPoints[1].y);
 
-        Debug.Log("point with lowest x coord = " + pumin.x + "," + pumin.y);
-        Debug.Log("point with highest x coord = " + pumax.x + "," + pumax.y);
+        //Debug.Log("point with lowest x coord = " + pumin.x + "," + pumin.y);
+        //Debug.Log("point with highest x coord = " + pumax.x + "," + pumax.y);
 
         List<Point> uhPoints = new List<Point>();
 
@@ -135,25 +232,25 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
                 uhPoints.Add(it);
         }
 
-        Debug.Log("Finding Upper Hull for the following points");
+        //Debug.Log("Finding Upper Hull for the following points");
         foreach(Point point in uhPoints)
         {
-            Debug.Log(point.x + " " + point.y);
+            //Debug.Log(point.x + " " + point.y);
         }
         UpperHull(pumin, pumax, uhPoints);
 
-        Debug.Log("Printing Upper Hull Edges");
+        //Debug.Log("Printing Upper Hull Edges");
         foreach (Edge edge in edges)
         {
-            Debug.Log("(" + edge.point1.x + "," + edge.point1.y + ") - (" + edge.point2.x + "," + edge.point2.y + ")");
+            //Debug.Log("(" + edge.point1.x + "," + edge.point1.y + ") - (" + edge.point2.x + "," + edge.point2.y + ")");
         }
 
-        List<Point> maxMinPoints = findMaxMinX();
+        List<Point> maxMinPoints = findMaxMinX(points);
 
         Point pumin1 = new Point(maxMinPoints[0].x, maxMinPoints[0].y);
         Point pumax1 = new Point(maxMinPoints[1].x, maxMinPoints[1].y);
-        Debug.Log("point with lowest x coord = " + pumin1.x + "," + pumin1.y);
-        Debug.Log("point with highest x coord = " + pumax1.x + "," + pumax1.y);
+        //Debug.Log("point with lowest x coord = " + pumin1.x + "," + pumin1.y);
+        //Debug.Log("point with highest x coord = " + pumax1.x + "," + pumax1.y);
         List<Point> lhPoints = new List<Point>();
 
         foreach (Point it in points)
@@ -184,36 +281,37 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         }
     }
 
-    List<Point> findMinMaxX()
+    PairPointsIndices findMinMaxX(List<Point> points)
     {
         List<Point> res = new List<Point>();
+        int minIndex = 0, maxIndex = 0;
         float puminx = points[0].x;
         float puminy = points[0].y;
-
         float pumaxx = points[0].x;
         float pumaxy = points[0].y;
 
         for (int i = 1; i < points.Count; i++)
         {
-            if (points[i].x < puminx || (points[i].x == puminx && points[i].y > puminy))
+            if (points[i].x < puminx || points[i].x == puminx && points[i].y > puminy)
             {
                 puminx = points[i].x;
                 puminy = points[i].y;
+                minIndex = i;
             }
             if (points[i].x > pumaxx || points[i].x == pumaxx && points[i].y > pumaxy)
             {
                 pumaxx = points[i].x;
                 pumaxy = points[i].y;
+                maxIndex = i;
             }
         }
-
-        res.Add(new Point(puminx, puminy));
+        res.Add(new Point( puminx, puminy ));
         res.Add(new Point(pumaxx, pumaxy));
-
-        return res;
+        List<int> ind = new List<int> { minIndex , maxIndex };
+        return new PairPointsIndices(res, ind);
     }
 
-    List<Point> findMaxMinX()
+    List<Point> findMaxMinX(List<Point> points)
     {
         List<Point> res = new List<Point>();
         float puminx = points[0].x;
@@ -246,7 +344,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         if (n == 2)
         {
             edges.Add(new Edge(points[0], points[1]));
-            Debug.Log("Addign edge "+ points[0].x+ "," + points[0].y + " - " + points[1].x + "," + points[1].y);
+            //Debug.Log("Addign edge "+ points[0].x+ "," + points[0].y + " - " + points[1].x + "," + points[1].y);
             return;
         }
 
@@ -256,12 +354,12 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         else
             medianX = points[n / 2].x;
 
-        Debug.Log("Median line : x = " + medianX);
+        //Debug.Log("Median line : x = " + medianX);
 
         Edge ub = UpperBridge(points, medianX);
 
-        Debug.Log("Printing Upper Bridge Edge ");
-        Debug.Log("(" + ub.point1.x + ',' + ub.point1.y + "),(" + ub.point2.x + "," + ub.point2.y + ")");
+        //Debug.Log("Printing Upper Bridge Edge ");
+        //Debug.Log("(" + ub.point1.x + ',' + ub.point1.y + "),(" + ub.point2.x + "," + ub.point2.y + ")");
         edges.Add(ub);
 
         Point pl = ub.point1;
@@ -289,15 +387,15 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
                 T_right.Add(point);
             }
         }
-        Debug.Log("Contents of T_left");
+        //Debug.Log("Contents of T_left");
         foreach(Point p in T_left)
         {
-            Debug.Log(p.x + "," + p.y);
+            //Debug.Log(p.x + "," + p.y);
         }
-        Debug.Log("Contents of T_right");
+        //Debug.Log("Contents of T_right");
         foreach (Point p in T_right)
         {
-            Debug.Log(p.x + "," + p.y);
+            //Debug.Log(p.x + "," + p.y);
         }
 
         if (pl.x != pmin.x && pl.y!= pmin.y)
@@ -326,12 +424,12 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         else
             medianX = points[n / 2].x;
 
-        Debug.Log("Median line : x = " + medianX);
+        //Debug.Log("Median line : x = " + medianX);
 
         Edge ub = LowerBridge(points, medianX);
 
-        Debug.Log("Printing Lower Bridge Edge ");
-        Debug.Log("(" + ub.point1.x + ',' + ub.point1.y + "),(" + ub.point2.x + "," + ub.point2.y + ")");
+        //Debug.Log("Printing Lower Bridge Edge ");
+        //Debug.Log("(" + ub.point1.x + ',' + ub.point1.y + "),(" + ub.point2.x + "," + ub.point2.y + ")");
         edges.Add(ub);
 
         Point pl = ub.point1;
@@ -372,15 +470,18 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
 
     Edge UpperBridge(List<Point> points, float a)
     {
-        Debug.Log("a = "+a);
+        //Debug.Log("a = "+a);
         List<Point> candidates = new List<Point>();
         int n = points.Count;
         if (n == 2)
         {
-            return new Edge(points[0], points[1]);
+            if (points[0].x < points[1].x)
+                return new Edge(points[0], points[1]);
+            else
+                return new Edge(points[1], points[0]);
         }
-        else
-            Debug.Log("number of pints = " + n);
+        //else
+            //Debug.Log("number of pints = " + n);
         List<Edge> pairs = new List<Edge>();
 
         List<float> K = new List<float>();
@@ -425,14 +526,14 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
                 K.Add((float)(p1.y - p2.y) / (p1.x - p2.x));
             }
         }
-        Debug.Log("Printing candidates1");
+        //Debug.Log("Printing candidates1");
         foreach (Point p in candidates)
         {
-            Debug.Log(p.x + "," + p.y);
+            //Debug.Log(p.x + "," + p.y);
         }
 
         float medianK = findMedian(K);
-        Debug.Log("Median is " + medianK);
+        //Debug.Log("Median is " + medianK);
         List<Edge> smaller = new List<Edge>();
         List<Edge> equal = new List<Edge>();
         List<Edge> larger = new List<Edge>();
@@ -443,12 +544,12 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             Point p2 = pairs[i].point2;
 
             float slopeVal = (float)(p1.y - p2.y) / (p1.x - p2.x);
-            Debug.Log("Slope is " + slopeVal);
+            //Debug.Log("Slope is " + slopeVal);
             if (slopeVal < medianK)
             {
                 smaller.Add(new Edge(p1, p2));
             }
-            else if (slopeVal == medianK)
+            else if (Mathf.Approximately(slopeVal, medianK))
             {
                 equal.Add(new Edge(p1, p2));
             }
@@ -458,7 +559,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             }
         }
 
-        float maximumIntercept = -9999;
+        float maximumIntercept = int.MinValue;
 
         foreach (Point point in points)
         {
@@ -471,25 +572,25 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             }
         }
 
-        Point pk = new Point(9999, 9999);
-        Point pm = new Point(-9999, -9999);
+        Point pk = new Point(int.MaxValue, int.MaxValue);
+        Point pm = new Point(int.MinValue, int.MinValue);
 
         foreach (Point point in points)
         {
             float y = point.y;
             float x = point.x;
-            Debug.Log("The point at this point is "+x + "," + y+" "+maximumIntercept);
-            Debug.Log("Maximum intercept is " + maximumIntercept);
-            Debug.Log("y - medianK * x " + (y - medianK * x));
+            //Debug.Log("The point at this point is "+x + "," + y+" "+maximumIntercept);
+            //Debug.Log("Maximum intercept is " + maximumIntercept);
+            //Debug.Log("y - medianK * x " + (y - medianK * x));
 
-            if ((y - medianK * x) == maximumIntercept)
-                Debug.Log("They are equal");
-            else
-                Debug.Log((y - medianK * x) + " and " + maximumIntercept+" are not equal");
+            //if ((y - medianK * x) == maximumIntercept)
+            //Debug.Log("They are equal");
+            //else
+            //Debug.Log((y - medianK * x) + " and " + maximumIntercept+" are not equal");
 
-            if (Mathf.Approximately(y-medianK*x, maximumIntercept))
+            if (Mathf.Approximately(y - medianK * x, maximumIntercept))
             {
-                Debug.Log("Change here " + maximumIntercept);
+                //Debug.Log("Change here " + maximumIntercept);
                 if (x < pk.x)
                 {
                     pk = new Point(x, y);
@@ -501,9 +602,9 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             }
         }
 
-        Debug.Log("pk is " + pk.x + "," + pk.y);
-        Debug.Log("pm is " + pm.x + "," + pm.y);
-        Debug.Log("a is " + a);
+        //Debug.Log("pk is " + pk.x + "," + pk.y);
+        //Debug.Log("pm is " + pm.x + "," + pm.y);
+        //Debug.Log("a is " + a);
 
 
         if (pk.x <= a && pm.x > a)
@@ -516,21 +617,21 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             foreach (Edge pair in larger)
             {
                 candidates.Add(pair.point2);
-                Debug.Log("Added on line 504");
+                //Debug.Log("Added on line 504");
             }
             foreach (Edge pair in equal)
             {
                 candidates.Add(pair.point2);
-                Debug.Log("ok"+pair.point2.x);
-                Debug.Log("ok1"+pair.point2.y);
+                //Debug.Log("ok"+pair.point2.x);
+                //Debug.Log("ok1"+pair.point2.y);
 
             }
             foreach (Edge pair in smaller)
             {
                 candidates.Add(pair.point2);
-                Debug.Log("Added on line 514");
+                //Debug.Log("Added on line 514");
                 candidates.Add(pair.point1);
-                Debug.Log("Added on line 516");
+                //Debug.Log("Added on line 516");
             }
         }
 
@@ -550,10 +651,10 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
                 candidates.Add(pair.point1);
             }
         }
-        Debug.Log("Printing candidates2");
+        //Debug.Log("Printing candidates2");
         foreach(Point p in candidates)
         {
-            Debug.Log(p.x + "," + p.y);
+            //Debug.Log(p.x + "," + p.y);
         }
 
         return UpperBridge(candidates, a);
@@ -627,7 +728,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             {
                 smaller.Add(new Edge(p1, p2));
             }
-            else if (slopeVal == medianK)
+            else if (Mathf.Approximately(slopeVal, medianK))
             {
                 equal.Add(new Edge(p1, p2));
             }
@@ -722,7 +823,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         tempList.Sort();
         if (tempList.Count == 0)
         {
-            Debug.LogError("Cannot find median of empty list");
+            //Debug.LogError("Cannot find median of empty list");
         }
 
         if(n % 2 == 1)
@@ -828,12 +929,271 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             temp_y = -9999;
         }
     }
-
+    private void setStatus(string str)
+    {
+        statusText.text = str;
+    }
+    
+    private int buttonClicks = 0;
+    private float medianInX = 0;
+    Edge bridge;
+    List<GameObject>pointGameObjects= new List<GameObject>();
+    List<GameObject>lineGameObjects= new List<GameObject>();
     public void OnButtonClick()
     {
-        if (isButtonClickAllowed)
+        if (!isButtonClickAllowed)
         {
-            ComputeHull();
+            return;
         }
+        if(ksStack.Count == 0)
+        {
+            foreach (GameObject pointObject in pointGameObjects)
+            {
+                Destroy(pointObject);
+            }
+            foreach (GameObject lineObject in lineGameObjects)
+            {
+                Destroy(lineObject);
+            }
+
+            endAlgo();
+            return;
+        }
+        KsStackObject stackObject;
+        if (buttonClicks % 4 == 0)
+        {
+            stackObject = ksStack.Peek();
+
+            foreach(GameObject pointObject in pointGameObjects)
+            {
+                Destroy(pointObject);
+            }
+            foreach(Point p in stackObject.points)
+            {
+                GameObject newPoint;
+                if (stackObject.isUpperHull)
+                    newPoint = Instantiate(bigPointPrefab, new Vector3(p.x, p.y, 0), Quaternion.identity);
+                else
+                    newPoint = Instantiate(bigPointPrefab, new Vector3(-p.x, -p.y, 0), Quaternion.identity);
+                pointGameObjects.Add(newPoint);
+            }
+            foreach(GameObject lineObject in lineGameObjects)
+            {
+                Destroy(lineObject);
+            }
+
+            Debug.Log("In this subproblem there are " + stackObject.points.Count + " points. They are");
+            foreach (Point p in stackObject.points)
+            {
+                Debug.Log(p.x + "," + p.y);
+            }
+
+            if (stackObject.points.Count == 1)
+            {
+                setStatus("Edge already drawn");
+                return;
+            }
+            else if (stackObject.points.Count == 2)
+            {
+                setStatus("Only 2 points in subproblem, base case");
+                if(stackObject.isUpperHull)
+                    DrawLine(stackObject.points[0], stackObject.points[1], hullMaterial, width);
+                else
+                    DrawLine(ReflectAboutOrigin(stackObject.points[0]), ReflectAboutOrigin(stackObject.points[1]), hullMaterial, width);
+                ksStack.Pop();
+                buttonClicks = 0;
+                return;
+            }
+
+            stackObject.points.Sort(new XComparer());
+            PairPointsIndices temp = findMinMaxX(stackObject.points);
+
+            Point pmin = temp.points[0];
+            Point pmax = temp.points[1];
+
+            int minIndex = temp.indices[0];
+            int maxIndex = temp.indices[1];
+
+            if (minIndex == maxIndex)
+            {
+                return;
+            }
+
+            List<Point> uhPoints = new List<Point> { pmin, pmax };
+
+            foreach (Point point in stackObject.points)
+            {
+                if (point.x > pmin.x && point.x < pmax.x)
+                {
+                    uhPoints.Add(point);
+                }
+            }
+            uhPoints.Sort(new XComparer());
+
+            ksStack.Pop();
+            ksStack.Push(new KsStackObject(uhPoints, stackObject.isUpperHull));
+
+            stackObject = ksStack.Peek();
+
+            foreach (Point p in stackObject.points)
+            {
+                GameObject newPoint;
+                if(stackObject.isUpperHull)
+                    newPoint = Instantiate(bigPointPrefab, new Vector3(p.x, p.y, 0), Quaternion.identity);
+                else
+                    newPoint = Instantiate(bigPointPrefab, new Vector3(-p.x, -p.y, 0), Quaternion.identity);
+                pointGameObjects.Add(newPoint);
+            }
+            foreach (GameObject lineObject in lineGameObjects)
+            {
+                Destroy(lineObject);
+            }
+            GameObject baseLine;
+            if (stackObject.isUpperHull)
+                baseLine = DrawLine1(pmin, pmax, lineMaterial, width);
+            else
+                baseLine = DrawLine1(ReflectAboutOrigin(pmin), ReflectAboutOrigin(pmax), lineMaterial, width);
+            setStatus("At the start, we find Xmax and Xmin");
+            lineGameObjects.Add(baseLine);
+        }
+        else if (buttonClicks % 4 == 1)
+        {
+            stackObject = ksStack.Peek();
+            stackObject.points.Sort(new XComparer());
+            
+            Point pmin = stackObject.points[0];
+            Point pmax = stackObject.points[stackObject.points.Count - 1];
+            int n = stackObject.points.Count;
+            float medianX;
+            if (n % 2 == 0)
+                medianX = (stackObject.points[n / 2].x + stackObject.points[n / 2 - 1].x) / 2.0f;
+            else
+                medianX = stackObject.points[n / 2].x;
+
+            foreach(Point p in stackObject.points)
+            {
+                Debug.Log("Debug median " + p.x + "," + p.y);
+            }
+
+            /*bool isPointOnMedian = false;
+            foreach(Point p in stackObject.points)
+            {
+                if(p.x == medianX)
+                {
+                    isPointOnMedian = true;
+                    break;
+                }
+            }
+            Point firstPointAfterMedianX = stackObject.points[0];
+            foreach (Point p in stackObject.points)
+            {
+                if (p.x > medianX)
+                {
+                    firstPointAfterMedianX = p;
+                    break;
+                }
+            }
+            if(!isPointOnMedian)
+                medianInX = medianX;
+            else
+                medianInX = (medianX+firstPointAfterMedianX.x)/2.0f;*/
+            medianInX = medianX;
+
+            if (!stackObject.isUpperHull)
+               medianX *= -1;
+
+            GameObject newLine = DrawLine1(new Point(medianX, 10), new Point(medianX, -10), lineMaterial, width);
+            lineGameObjects.Add(newLine);
+
+            setStatus("The median line is x = " + medianX);
+        }
+        else if (buttonClicks % 4 == 2)
+        {
+            stackObject = ksStack.Peek();
+            stackObject.points.Sort(new XComparer());
+            Edge ub;
+            ub = UpperBridge(stackObject.points, medianInX);
+
+            edges.Add(ub);
+            if (stackObject.isUpperHull)
+            {
+                DrawLine(ub.point1, ub.point2, hullMaterial, width);
+            }
+            else 
+            {
+                Edge lb = ReflectAboutOrigin(ub);
+                DrawLine(lb.point1, lb.point2, hullMaterial, width);
+            }
+            setStatus("Drawing the upper/lower bridge");
+            bridge = ub;
+        }
+        else if(buttonClicks % 4 == 3)
+        {
+            stackObject = ksStack.Peek();
+            stackObject.points.Sort(new XComparer());
+            Point pi = bridge.point1;
+            Point pj = bridge.point2;
+
+            List<Point> S_left = new List<Point> { pi }, S_right = new List<Point> { pj };
+
+            foreach (Point point in stackObject.points)
+            {
+                if (point.x < pi.x)
+                {
+                    S_left.Add(point);
+                }
+                if (point.x > pj.x)
+                {
+                    S_right.Add(point);
+                }
+            }
+
+            ksStack.Pop();
+            Point pk = stackObject.points[0], pm = stackObject.points[stackObject.points.Count - 1];
+            if (pj.x != pm.x || pj.y != pm.y)
+            {
+                //connect(pj, pm, S_right, edges);
+                ksStack.Push(new KsStackObject(S_right, stackObject.isUpperHull));
+            }
+            if (pi.x != pk.x || pi.y != pk.y)
+            {
+                //connect(pk, pi, S_left, edges);
+                ksStack.Push(new KsStackObject(S_left, stackObject.isUpperHull));
+            }
+            string hull = stackObject.isUpperHull ? "Upper hull" : "Lower Hull";
+            setStatus("Going into 2 subproblems for "+hull);
+        }
+        Debug.Log("The number of objects in the stack = " + ksStack.Count);
+        buttonClicks++;
+    }
+    List<Point> ReflectAboutOrigin(List<Point> points)
+    {
+        List<Point> ans = new List<Point>();
+        foreach(Point p in points)
+        {
+            Point newP = new Point(-1*p.x, -1*p.y);
+            ans.Add(newP);
+        }
+        return ans;
+    }
+    Edge ReflectAboutOrigin(Edge edge)
+    {
+        Point newPoint1 = new Point(-1 * edge.point1.x, -1 * edge.point1.y);
+        Point newPoint2 = new Point(-1 * edge.point2.x, -1 * edge.point2.y);
+
+        return new Edge(newPoint1, newPoint2);
+    }
+    Point ReflectAboutOrigin(Point p)
+    {
+        return new Point(-1 * p.x, -1 * p.y);
+    }
+    void endAlgo()
+    {
+        foreach(Point p in points)
+        {
+            Instantiate(bigPointPrefab, new Vector3(p.x, p.y, 0), Quaternion.identity);
+        }
+        setStatus("Convex Hull Complete");
+        nextButton.gameObject.SetActive(false);
     }
 }

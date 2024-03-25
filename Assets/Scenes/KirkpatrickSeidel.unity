@@ -738,7 +738,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 13
+  orthographic size: 5
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -1547,7 +1547,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pointPrefab: {fileID: 8160500293859226591, guid: 9741e997843981f44bb8451d8d1df01a, type: 3}
+  bigPointPrefab: {fileID: 8160500293859226591, guid: f84bd9c71bd1b4549871488ca9ed136e, type: 3}
   hullMaterial: {fileID: 2100000, guid: bf52f149a2a06e74dbaf489978ab3db5, type: 2}
+  lineMaterial: {fileID: 2100000, guid: 67e177b33ec619b459026ae194dd753f, type: 2}
   width: 0.1
   statusText: {fileID: 108371166}
   buttonText: {fileID: 1022151297}
