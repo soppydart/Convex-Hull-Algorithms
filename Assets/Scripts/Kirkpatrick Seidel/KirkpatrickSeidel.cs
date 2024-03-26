@@ -4,6 +4,9 @@ using TMPro;
 using UnityEngine.UI;
 using System.Collections;
 using Unity.VisualScripting;
+using Unity.Collections.LowLevel.Unsafe;
+using static KirkpatrickSeidelConvexHull;
+using UnityEngine.SceneManagement;
 
 public class KirkpatrickSeidelConvexHull : MonoBehaviour
 {
@@ -68,13 +71,22 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     [SerializeField] GameObject bigPointPrefab;
     [SerializeField] Material hullMaterial;
     [SerializeField] Material lineMaterial;
+    [SerializeField] Material tempMaterial;
+    [SerializeField] Material tempMaterial1;
     [SerializeField] float width = 0.1f;
     [SerializeField] TMP_Text statusText;
     [SerializeField] TMP_Text buttonText;
     [SerializeField] Button nextButton;
+    [SerializeField] Animator animator;
     private bool isButtonClickAllowed = false;
     private bool arePointsEntered = false;
 
+    [SerializeField] TargetGroupSubproblem subproblemScript;
+    [SerializeField] TargetGroupSubproblem duplicateSubproblemScript;
+    [SerializeField] TargetGroupLeftSubproblem leftSubproblemScript;
+    [SerializeField] TargetGroupRightSubproblem rightSubproblemScript;
+    [SerializeField] TargetGroupBridge bridgeScript;
+    [SerializeField] TargetGroupHull hullScript;
 
     private List<Point> points = new List<Point>();
     private List<Point> invertedPoints = new List<Point>();
@@ -155,12 +167,18 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         }*/
 
         //ksStack.Push(new KsStackObject(points, true));
+
+        //invertedPoints = ReflectAboutOrigin(points);
+        //ksStack.Push(new KsStackObject(invertedPoints, false));
+        //ksStack.Push(new KsStackObject(points, true));
+        //isButtonClickAllowed = true;
     }
     void Update()
     {
         if (buttonClicks > 0)
             buttonText.text = "Next";
 
+        nextButton.interactable= isButtonClickAllowed;
     }
     IEnumerator WaitForPoints()
     {
@@ -466,6 +484,300 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         {
             LowerHull(pr, pmax, T_right);
         }
+    }
+
+    List<GameObject>plottedLines = new List<GameObject>();
+    IEnumerator UpperBridge1(List<Point> points, float a, bool isUpperHull)
+    {
+        isButtonClickAllowed = false;
+        yield return new WaitForSeconds(0.2f);
+
+        foreach(GameObject ob in plottedLines)
+        {
+            Destroy(ob);
+        }
+
+        List<Point> candidates = new List<Point>();
+        int n = points.Count;
+        if (n == 2)
+        {
+            if (points[0].x < points[1].x)
+                bridge =  new Edge(points[0], points[1]);
+            else
+                bridge =  new Edge(points[1], points[0]);
+
+            isButtonClickAllowed = true;
+
+            edges.Add(bridge);
+            if (isUpperHull)
+            {
+                DrawLine(bridge.point1, bridge.point2, hullMaterial, width);
+                edges.Add(bridge);
+                UpdateBridge(bridge);
+            }
+            else
+            {
+                Edge lb = ReflectAboutOrigin(bridge);
+                DrawLine(lb.point1, lb.point2, hullMaterial, width);
+                edges.Add(lb);
+                UpdateBridge(lb);
+            }
+            if (isUpperHull)
+                setStatus("Drawing the upper bridge");
+            else
+                setStatus("Drawing the lower bridge");
+            //bridge = ub;
+
+            animator.SetBool("focusLeft", false);
+            animator.SetBool("focusRight", false);
+            animator.SetBool("focusHull", false);
+            animator.SetBool("focusSubproblem", false);
+            animator.SetBool("focusBridge", true);
+
+            yield break;
+        }
+
+        List<Edge> pairs = new List<Edge>();
+
+        List<GameObject>initialPairs = new List<GameObject>();
+
+        List<float> K = new List<float>();
+        int i = 0;
+        if (n % 2 == 1)
+        {
+            candidates.Add(points[0]);
+            i++;
+        }
+        for (; i <= n - 2; i += 2)
+        {
+            float x1 = points[i].x;
+            float x2 = points[i + 1].x;
+
+            if (x1 <= x2)
+            {
+                pairs.Add(new Edge(points[i], points[i + 1]));
+            }
+            else
+            {
+                pairs.Add(new Edge(points[i + 1], points[i]));
+            }
+        }
+        foreach(Edge e in pairs)
+        {
+            GameObject tempLine;
+            if (isUpperHull)
+                tempLine = DrawLine1(e.point1, e.point2, tempMaterial, width / 2.0f);
+            else
+                tempLine = DrawLine1(ReflectAboutOrigin(e.point1), ReflectAboutOrigin(e.point2), tempMaterial, width / 2.0f);
+            plottedLines.Add(tempLine);
+        }
+
+        yield return new WaitForSeconds(0.2f);
+
+        foreach(GameObject ob in plottedLines)
+        {
+            Destroy(ob);
+        }
+
+        for (i = 0; i < pairs.Count; i++)
+        {
+            Point p1 = pairs[i].point1;
+            Point p2 = pairs[i].point2;
+
+            if (p1.x == p2.x)
+            {
+                if (p1.y > p2.y)
+                {
+                    candidates.Add(p1);
+                }
+                else
+                {
+                    candidates.Add(p2);
+                }
+            }
+            else
+            {
+                K.Add((float)(p1.y - p2.y) / (p1.x - p2.x));
+            }
+        }
+
+        List<GameObject>candidateGameObjects = new List<GameObject>();
+        foreach(Edge e in pairs)
+        {
+            if(candidates.Contains(e.point1) && candidates.Contains(e.point2))
+            {
+                if(isUpperHull)
+                    plottedLines.Add(DrawLine1(e.point1, e.point2, tempMaterial, width / 0.2f));
+                else
+                    plottedLines.Add(DrawLine1(ReflectAboutOrigin(e.point1), ReflectAboutOrigin(e.point2), tempMaterial, width / 0.2f));
+            }
+        }
+
+        float medianK = findMedian(K);
+        List<Edge> smaller = new List<Edge>();
+        List<Edge> equal = new List<Edge>();
+        List<Edge> larger = new List<Edge>();
+
+        for (i = 0; i < pairs.Count; i++)
+        {
+            Point p1 = pairs[i].point1;
+            Point p2 = pairs[i].point2;
+
+            float slopeVal = (float)(p1.y - p2.y) / (p1.x - p2.x);
+            if (slopeVal < medianK)
+            {
+                smaller.Add(new Edge(p1, p2));
+            }
+            else if (Mathf.Approximately(slopeVal, medianK))
+            {
+                equal.Add(new Edge(p1, p2));
+            }
+            else
+            {
+                larger.Add(new Edge(p1, p2));
+            }
+        }
+
+        float maximumIntercept = int.MinValue;
+
+        foreach (Point point in points)
+        {
+            float y = point.y;
+            float x = point.x;
+
+            if (maximumIntercept < y - medianK * x)
+            {
+                maximumIntercept = y - medianK * x;
+            }
+        }
+        /*
+         * 
+        yield return new WaitForSeconds(0.2f);
+        foreach(GameObject ob in plottedLines)
+        {
+            Destroy(ob);
+        }
+
+        foreach(Point p in candidates)
+        {
+
+        }*/
+
+        Point pk = new Point(int.MaxValue, int.MaxValue);
+        Point pm = new Point(int.MinValue, int.MinValue);
+
+        foreach (Point point in points)
+        {
+            float y = point.y;
+            float x = point.x;
+
+            if (Mathf.Approximately(y - medianK * x, maximumIntercept))
+            {
+                if (x < pk.x)
+                {
+                    pk = new Point(x, y);
+                }
+                if (x > pm.x)
+                {
+                    pm = new Point(x, y);
+                }
+            }
+        }
+
+        yield return new WaitForSeconds(0.2f);
+        if(isUpperHull)
+            plottedLines.Add(DrawLine1(pk, pm, lineMaterial, width));
+        else
+            plottedLines.Add(DrawLine1(ReflectAboutOrigin(pk), ReflectAboutOrigin(pm), lineMaterial, width));
+
+        if (pk.x <= a && pm.x > a)
+        {
+            bridge =  new Edge(pk, pm);
+            isButtonClickAllowed = true;
+
+            edges.Add(bridge);
+            if (isUpperHull)
+            {
+                DrawLine(bridge.point1, bridge.point2, hullMaterial, width);
+                edges.Add(bridge);
+                UpdateBridge(bridge);
+            }
+            else
+            {
+                Edge lb = ReflectAboutOrigin(bridge);
+                DrawLine(lb.point1, lb.point2, hullMaterial, width);
+                edges.Add(lb);
+                UpdateBridge(lb);
+            }
+            if (isUpperHull)
+                setStatus("Drawing the upper bridge");
+            else
+                setStatus("Drawing the lower bridge");
+            //bridge = ub;
+
+            animator.SetBool("focusLeft", false);
+            animator.SetBool("focusRight", false);
+            animator.SetBool("focusHull", false);
+            animator.SetBool("focusSubproblem", false);
+            animator.SetBool("focusBridge", true);
+
+            yield break;
+        }
+
+        if (pm.x <= a)
+        {
+            foreach (Edge pair in larger)
+            {
+                candidates.Add(pair.point2);
+            }
+            foreach (Edge pair in equal)
+            {
+                candidates.Add(pair.point2);
+
+            }
+            foreach (Edge pair in smaller)
+            {
+                candidates.Add(pair.point2);
+                candidates.Add(pair.point1);
+            }
+        }
+
+        if (pk.x > a)
+        {
+            foreach (Edge pair in larger)
+            {
+                candidates.Add(pair.point2);
+                candidates.Add(pair.point1);
+            }
+            foreach (Edge pair in equal)
+            {
+                candidates.Add(pair.point1);
+            }
+            foreach (Edge pair in smaller)
+            {
+                candidates.Add(pair.point1);
+            }
+        }
+
+        yield return new WaitForSeconds(0.2f);
+        foreach(GameObject ob in plottedLines)
+        {
+            Destroy(ob);
+        }
+
+        List<GameObject> finalCandidateList = new List<GameObject>();
+        foreach(Edge e in pairs)
+        {
+            if(candidates.Contains(e.point1) && candidates.Contains(e.point2))
+            {
+                if(isUpperHull)
+                    plottedLines.Add(DrawLine1(e.point1, e.point2, tempMaterial, width / 2.0f));
+                else
+                    plottedLines.Add(DrawLine1(ReflectAboutOrigin(e.point1), ReflectAboutOrigin(e.point2), tempMaterial, width / 2.0f));
+            }
+        }
+
+        StartCoroutine(UpperBridge1(candidates, a, isUpperHull));
     }
 
     Edge UpperBridge(List<Point> points, float a)
@@ -939,6 +1251,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     Edge bridge;
     List<GameObject>pointGameObjects= new List<GameObject>();
     List<GameObject>lineGameObjects= new List<GameObject>();
+    bool isLeftActive = true;
     public void OnButtonClick()
     {
         if (!isButtonClickAllowed)
@@ -964,7 +1277,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         {
             stackObject = ksStack.Peek();
 
-            foreach(GameObject pointObject in pointGameObjects)
+            foreach (GameObject pointObject in pointGameObjects)
             {
                 Destroy(pointObject);
             }
@@ -995,11 +1308,55 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             }
             else if (stackObject.points.Count == 2)
             {
-                setStatus("Only 2 points in subproblem, base case");
-                if(stackObject.isUpperHull)
-                    DrawLine(stackObject.points[0], stackObject.points[1], hullMaterial, width);
+                setStatus("Only 2 points in subproblem [base case]");
+
+                if (isLeftActive)
+                {
+                    if (stackObject.isUpperHull)
+                        UpdateRightSubproblem(stackObject.points);
+                    else
+                        UpdateRightSubproblem(ReflectAboutOrigin(stackObject.points));
+
+                    animator.SetBool("focusLeft", false);
+                    animator.SetBool("focusHull", false);
+                    animator.SetBool("focusBridge", false);
+                    animator.SetBool("focusSubproblem", false);
+                    animator.SetBool("focusDuplicate", false);
+                    animator.SetBool("focusRight", true);
+                }
                 else
+                {
+                    if(stackObject.isUpperHull)
+                        UpdateLeftSubproblem(stackObject.points);
+                    else
+                        UpdateLeftSubproblem(ReflectAboutOrigin(stackObject.points));
+
+                    animator.SetBool("focusRight", false);
+                    animator.SetBool("focusHull", false);
+                    animator.SetBool("focusBridge", false);
+                    animator.SetBool("focusSubproblem", false);
+                    animator.SetBool("focusDuplicate", false);
+                    animator.SetBool("focusLeft", true);
+                }
+                isLeftActive = !isLeftActive;
+
+                //UpdateLeftSubproblem(stackObject.points);
+
+                //animator.SetBool("focusRight", false);
+                //animator.SetBool("focusHull", false);
+                //animator.SetBool("focusBridge", false);
+                //animator.SetBool("focusSubproblem", false);
+                //animator.SetBool("focusLeft", true);
+                if (stackObject.isUpperHull)
+                {
+                    DrawLine(stackObject.points[0], stackObject.points[1], hullMaterial, width);
+                    edges.Add(new Edge(stackObject.points[0], stackObject.points[1]));
+                }
+                else
+                {
                     DrawLine(ReflectAboutOrigin(stackObject.points[0]), ReflectAboutOrigin(stackObject.points[1]), hullMaterial, width);
+                    edges.Add(new Edge(ReflectAboutOrigin(stackObject.points[0]), ReflectAboutOrigin(stackObject.points[1])));
+                }
                 ksStack.Pop();
                 buttonClicks = 0;
                 return;
@@ -1054,6 +1411,20 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             else
                 baseLine = DrawLine1(ReflectAboutOrigin(pmin), ReflectAboutOrigin(pmax), lineMaterial, width);
             setStatus("At the start, we find Xmax and Xmin");
+
+            animator.SetBool("focusDuplicate", false);
+            if(stackObject.isUpperHull)
+                UpdateSubproblem(stackObject.points);
+            else
+                UpdateSubproblem(ReflectAboutOrigin(stackObject.points));
+
+            animator.SetBool("focusLeft", false);
+            animator.SetBool("focusRight", false);
+            animator.SetBool("focusHull", false);
+            animator.SetBool("focusBridge", false);
+            animator.SetBool("focusDuplicate", false);
+            animator.SetBool("focusSubproblem", true);
+
             lineGameObjects.Add(baseLine);
         }
         else if (buttonClicks % 4 == 1)
@@ -1111,21 +1482,44 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         {
             stackObject = ksStack.Peek();
             stackObject.points.Sort(new XComparer());
-            Edge ub;
-            ub = UpperBridge(stackObject.points, medianInX);
+            //Edge ub;
 
-            edges.Add(ub);
+            if (stackObject.isUpperHull)
+                setStatus("Computing the Upper Bridge");
+            else
+                setStatus("Computing the Lower Bridge");
+
+            StartCoroutine(UpperBridge1(stackObject.points, medianInX, stackObject.isUpperHull));
+
+            /*
+            edges.Add(bridge);
             if (stackObject.isUpperHull)
             {
-                DrawLine(ub.point1, ub.point2, hullMaterial, width);
+                DrawLine(bridge.point1, bridge.point2, hullMaterial, width);
+                edges.Add(bridge);
+                UpdateBridge(bridge);
             }
             else 
             {
-                Edge lb = ReflectAboutOrigin(ub);
+                Edge lb = ReflectAboutOrigin(bridge);
                 DrawLine(lb.point1, lb.point2, hullMaterial, width);
+                edges.Add(lb);
+                UpdateBridge(lb);
             }
-            setStatus("Drawing the upper/lower bridge");
-            bridge = ub;
+            if(stackObject.isUpperHull)
+                setStatus("Drawing the upper bridge");
+            else
+                setStatus("Drawing the lower bridge");
+            //bridge = ub;
+
+            animator.SetBool("focusLeft", false);
+            animator.SetBool("focusRight", false);
+            animator.SetBool("focusHull", false);
+            animator.SetBool("focusSubproblem", false);
+            animator.SetBool("focusBridge", true);
+            */
+            buttonClicks++;
+            return;
         }
         else if(buttonClicks % 4 == 3)
         {
@@ -1148,6 +1542,9 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
                 }
             }
 
+            //UpdateLeftSubproblem(S_left);
+            //UpdateRightSubproblem(S_right);
+
             ksStack.Pop();
             Point pk = stackObject.points[0], pm = stackObject.points[stackObject.points.Count - 1];
             if (pj.x != pm.x || pj.y != pm.y)
@@ -1162,10 +1559,129 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             }
             string hull = stackObject.isUpperHull ? "Upper hull" : "Lower Hull";
             setStatus("Going into 2 subproblems for "+hull);
+
+            StartCoroutine(DivideIntoSubproblems(S_left, S_right, stackObject.points, stackObject.isUpperHull));
+            isButtonClickAllowed = false;
         }
         Debug.Log("The number of objects in the stack = " + ksStack.Count);
         buttonClicks++;
     }
+
+    IEnumerator DivideIntoSubproblems(List<Point>S_left, List<Point>S_right, List<Point>allPoints, bool isupperHull)
+    {
+        if (isupperHull)
+        {
+            UpdateLeftSubproblem(S_left);
+            UpdateRightSubproblem(S_right);
+        }
+        else
+        {
+            UpdateLeftSubproblem(ReflectAboutOrigin(S_left));
+            UpdateRightSubproblem(ReflectAboutOrigin(S_right));
+        }
+
+        foreach (GameObject ob in pointGameObjects)
+        {
+            if(ob != null)
+                ob.GameObject().SetActive(false);
+        }
+        List<GameObject>tempPointGameObjects = new List<GameObject>();
+
+        if (S_left.Count > 0)
+        {
+            yield return new WaitForSeconds(1f);
+
+            foreach (Point p in S_left)
+            {
+                if (isupperHull)
+                    tempPointGameObjects.Add(Instantiate(bigPointPrefab, new Vector3(p.x, p.y, 0), Quaternion.identity));
+                else
+                    tempPointGameObjects.Add(Instantiate(bigPointPrefab, new Vector3(-p.x, -p.y, 0), Quaternion.identity));
+            }
+            if (isupperHull)
+            {
+                if (S_left.Count == 1)
+                    setStatus("This is the left sub-problem, which has only 1 point [trivial case]");
+                else
+                    setStatus("This is the left sub-problem");
+            }
+            else
+            {
+                if (S_left.Count == 1)
+                    setStatus("This is the right sub-problem, which has only 1 point [trivial case]");
+                else
+                    setStatus("This is the right sub-problem");
+            }
+            animator.SetBool("focusBridge", false);
+            animator.SetBool("focusRight", false);
+            animator.SetBool("focusHull", false);
+            animator.SetBool("focusSubproblem", false);
+            animator.SetBool("focusLeft", true);
+        }
+
+        if(S_right.Count > 0)
+        {
+            yield return new WaitForSeconds(1f);
+
+            foreach (GameObject ob in tempPointGameObjects)
+            {
+                Destroy(ob);
+            }
+            foreach (Point p in S_right)
+            {
+                if(isupperHull)
+                    tempPointGameObjects.Add(Instantiate(bigPointPrefab, new Vector3(p.x, p.y, 0), Quaternion.identity));
+                else
+                    tempPointGameObjects.Add(Instantiate(bigPointPrefab, new Vector3(-p.x, -p.y, 0), Quaternion.identity));
+            }
+            if (isupperHull)
+            {
+                if (S_right.Count == 1)
+                    setStatus("This is the right sub-problem, which has only 1 point [trivial case]");
+                else
+                    setStatus("This is the right sub-problem");
+            }
+            else
+            {
+                if (S_right.Count == 1)
+                    setStatus("This is the left sub-problem, which has only 1 point [trivial case]");
+                else
+                    setStatus("This is the left sub-problem");
+            }
+            animator.SetBool("focusBridge", false);
+            animator.SetBool("focusLeft", false);
+            animator.SetBool("focusHull", false);
+            animator.SetBool("focusSubproblem", false);
+            animator.SetBool("focusRight", true);
+        }
+
+        yield return new WaitForSeconds(1f);
+        foreach (GameObject ob in tempPointGameObjects)
+        {
+            Destroy(ob);
+        }
+        foreach (GameObject ob in pointGameObjects)
+        {
+            if(ob != null)
+                ob.GameObject().SetActive(true);
+        }
+
+        if(isupperHull)
+            UpdateDuplicateSubproblem(allPoints);
+        else
+            UpdateDuplicateSubproblem(ReflectAboutOrigin(allPoints));
+        setStatus("");
+        animator.SetBool("focusBridge", false);
+        animator.SetBool("focusHull", false);
+        animator.SetBool("focusRight", false);
+        animator.SetBool("focusLeft", false);
+        animator.SetBool("focusSubproblem", false);
+        animator.SetBool("focusDuplicate", true);
+
+        isButtonClickAllowed = true;
+        yield break;
+    }
+
     List<Point> ReflectAboutOrigin(List<Point> points)
     {
         List<Point> ans = new List<Point>();
@@ -1189,11 +1705,161 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     }
     void endAlgo()
     {
-        foreach(Point p in points)
+        PairPointsIndices pupper = findMinMaxX(points);
+        PairPointsIndices plower = findMinMaxX(invertedPoints);
+
+        Point pmin = pupper.points[0];
+        Point pmax = pupper.points[1];
+
+        Point pmin1 = ReflectAboutOrigin(plower.points[0]);
+        Point pmax1 = ReflectAboutOrigin(plower.points[1]);
+
+        /*if (pmin.x != pmin1.x || pmin.y != pmin1.y)
+        {
+            edges.Add(new Edge(pmin, pmin1));
+            DrawLine(pmin, pmin1, hullMaterial, width);
+        }
+        if (pmax.x != pmax1.x || pmax.y != pmax1.y)
+        {
+            edges.Add(new Edge(pmax, pmax1));
+            DrawLine(pmax, pmax1, hullMaterial, width);
+        }*/
+
+        List<Point>hullPoints= new List<Point>();
+        foreach(Edge e in edges)
+        {
+            hullPoints.Add(e.point1);
+            hullPoints.Add(e.point2);
+        }
+        UpdateHull(hullPoints);
+        animator.SetBool("focusLeft", false);
+        animator.SetBool("focusRight", false);
+        animator.SetBool("focusBridge", false);
+        animator.SetBool("focusHull", true);
+
+        foreach (Point p in points)
         {
             Instantiate(bigPointPrefab, new Vector3(p.x, p.y, 0), Quaternion.identity);
         }
         setStatus("Convex Hull Complete");
+        Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
         nextButton.gameObject.SetActive(false);
+    }
+    void UpdateSubproblem(List<Point> points)
+    {
+        List<Transform>transforms = new List<Transform>();
+        List<GameObject>gameObjects = new List<GameObject>();
+        foreach(Point p in points)
+        {
+            GameObject newGameObject = new GameObject("Temp Object");
+            gameObjects.Add(newGameObject);
+            Transform t = newGameObject.transform;
+            t.position = new Vector3(p.x, p.y, 0);
+            transforms.Add(t);
+        }
+        subproblemScript.UpdateSubproblem(transforms);
+        foreach (GameObject ob in gameObjects)
+        {
+            Destroy(ob);
+        }
+    }
+    void UpdateDuplicateSubproblem(List<Point> points)
+    {
+        List<Transform> transforms = new List<Transform>();
+        List<GameObject> gameObjects = new List<GameObject>();
+        foreach (Point p in points)
+        {
+            GameObject newGameObject = new GameObject("Temp Object");
+            gameObjects.Add(newGameObject);
+            Transform t = newGameObject.transform;
+            t.position = new Vector3(p.x, p.y, 0);
+            transforms.Add(t);
+        }
+        duplicateSubproblemScript.UpdateSubproblem(transforms);
+        foreach (GameObject ob in gameObjects)
+        {
+            Destroy(ob);
+        }
+    }
+    void UpdateBridge(Edge bridge)
+    {
+        List<Transform> transforms = new List<Transform>();
+
+        Point p1 = bridge.point1;
+        Point p2 = bridge.point2;
+
+        GameObject newGameObject = new GameObject("Temp Object");
+        Transform t = newGameObject.transform;
+        t.position = new Vector3(p1.x, p1.y, 0);
+        transforms.Add(t);
+        Destroy(newGameObject);
+
+        newGameObject = new GameObject("Temp Object");
+        t = newGameObject.transform;
+        t.position = new Vector3(p2.x, p2.y, 0);
+        transforms.Add(t);
+        Destroy(newGameObject);
+
+        bridgeScript.UpdateBridge(transforms);
+    }
+    void UpdateLeftSubproblem(List<Point> points)
+    {
+        List<Transform> transforms = new List<Transform>();
+        List<GameObject> gameObjects = new List<GameObject>();
+        foreach (Point p in points)
+        {
+            GameObject newGameObject = new GameObject("Temp Object");
+            gameObjects.Add(newGameObject);
+            Transform t = newGameObject.transform;
+            t.position = new Vector3(p.x, p.y, 0);
+            transforms.Add(t);
+        }
+        leftSubproblemScript.UpdateLeftSubproblem(transforms);
+        foreach (GameObject ob in gameObjects)
+        {
+            Destroy(ob);
+        }
+    }
+    void UpdateRightSubproblem(List<Point> points)
+    {
+        List<Transform> transforms = new List<Transform>();
+        List<GameObject> gameObjects = new List<GameObject>();
+        foreach (Point p in points)
+        {
+            GameObject newGameObject = new GameObject("Temp Object");
+            gameObjects.Add(newGameObject);
+            Transform t = newGameObject.transform;
+            t.position = new Vector3(p.x, p.y, 0);
+            transforms.Add(t);
+        }
+        rightSubproblemScript.UpdateRightSubproblem(transforms);
+        foreach (GameObject ob in gameObjects)
+        {
+            Destroy(ob);
+        }
+    }
+    void UpdateHull(List<Point> points)
+    {
+        List<Transform> transforms = new List<Transform>();
+        List<GameObject> gameObjects = new List<GameObject>();
+        foreach (Point p in points)
+        {
+            GameObject newGameObject = new GameObject("Temp Object");
+            gameObjects.Add(newGameObject);
+            Transform t = newGameObject.transform;
+            t.position = new Vector3(p.x, p.y, 0);
+            transforms.Add(t);
+        }
+        hullScript.UpdateHull(transforms);
+        foreach (GameObject ob in gameObjects)
+        {
+            Destroy(ob);
+        }
+    }
+
+    public void Reload()
+    {
+        string currentSceneName = SceneManager.GetActiveScene().name;
+        SceneManager.LoadScene(currentSceneName);
     }
 }

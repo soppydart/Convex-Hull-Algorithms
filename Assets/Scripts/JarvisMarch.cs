@@ -167,7 +167,7 @@ public class JarvisMarch : MonoBehaviour
     lastPointIndex = leftmostIndex;
     hull.Add(lastPointIndex);
     hullList.Add(new Vector2(lastPoint.x, lastPoint.y));
-    targetGroupHull.GetComponent<TargetGroupHull>().UpdateHull();
+    //targetGroupHull.GetComponent<TargetGroupHull>().UpdateHull();
     isButtonClickAllowed = true;
     startPoint = lastPoint;
     startPointIndex = leftmostIndex;
@@ -306,7 +306,7 @@ public class JarvisMarch : MonoBehaviour
         {
             hull.Add(nextIndex);
             hullList.Add(new Vector2(points[nextIndex].x, points[nextIndex].y));
-            targetGroupHull.GetComponent<TargetGroupHull>().UpdateHull();
+            //targetGroupHull.GetComponent<TargetGroupHull>().UpdateHull();
         }
         isButtonClickAllowed = true;
 
