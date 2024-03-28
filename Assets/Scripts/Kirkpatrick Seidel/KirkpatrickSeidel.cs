@@ -822,6 +822,11 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             Point p1 = pairs[i].point1;
             Point p2 = pairs[i].point2;
 
+            if (p1.x == p2.x && p1.y == p2.y)
+            {
+                continue;
+            }
+
             if (p1.x == p2.x)
             {
                 if (p1.y > p2.y)
@@ -1711,10 +1716,16 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         Point pmin = pupper.points[0];
         Point pmax = pupper.points[1];
 
-        Point pmin1 = ReflectAboutOrigin(plower.points[0]);
-        Point pmax1 = ReflectAboutOrigin(plower.points[1]);
+        Point pmin1 = plower.points[0];
+        Point pmax1 = plower.points[1];
 
-        /*if (pmin.x != pmin1.x || pmin.y != pmin1.y)
+        Point pmin2 = ReflectAboutOrigin(pmax1);
+        Point pmax2 = ReflectAboutOrigin(pmin1);
+
+        pmin1 = pmin2;
+        pmax1 = pmax2;
+
+        if (pmin.x != pmin1.x || pmin.y != pmin1.y)
         {
             edges.Add(new Edge(pmin, pmin1));
             DrawLine(pmin, pmin1, hullMaterial, width);
@@ -1723,7 +1734,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         {
             edges.Add(new Edge(pmax, pmax1));
             DrawLine(pmax, pmax1, hullMaterial, width);
-        }*/
+        }
 
         List<Point>hullPoints= new List<Point>();
         foreach(Edge e in edges)
