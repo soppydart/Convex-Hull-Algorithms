@@ -7,6 +7,8 @@ using Unity.VisualScripting;
 using Unity.Collections.LowLevel.Unsafe;
 using static KirkpatrickSeidelConvexHull;
 using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
+using System.Net;
 
 public class KirkpatrickSeidelConvexHull : MonoBehaviour
 {
@@ -77,9 +79,13 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     [SerializeField] TMP_Text statusText;
     [SerializeField] TMP_Text buttonText;
     [SerializeField] Button nextButton;
+    [SerializeField] Button skipButton;
     [SerializeField] Animator animator;
-    private bool isButtonClickAllowed = false;
-    private bool arePointsEntered = false;
+    private bool isButtonClickAllowed = true;
+    //private bool arePointsEntered = false;
+    private bool isAddingPointsByClickingAllowed = true;
+    private bool hasStackBeenInitialized = false;
+    private bool wasKpsSkipped = false;
 
     [SerializeField] TargetGroupSubproblem subproblemScript;
     [SerializeField] TargetGroupSubproblem duplicateSubproblemScript;
@@ -91,16 +97,21 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     private List<Point> points = new List<Point>();
     private List<Point> invertedPoints = new List<Point>();
     private List<Edge> edges = new List<Edge>();
+    private List<Point> directlyComputedHullPoints = new List<Point>();
+    private List<GameObject> kpsEdgeLines= new List<GameObject>();
 
     void Start()
     {
-        //points.Add(new Point(-3f, 0f));
-        //points.Add(new Point(-1f, 1.5f));
-        //points.Add(new Point(0.5f, 2f));
-        //points.Add(new Point(3f, 0.5f));
-        //points.Add(new Point(1.5f, 0f));
-        //points.Add(new Point(4f, -1f));
-        //points.Add(new Point(2f, -3f));
+        //points.Add(new Point(-2.64f, 0.06f));
+        //points.Add(new Point(-4.04f, 2.42f));
+        //points.Add(new Point(-1.72f, -0.21f));
+        //points.Add(new Point(-1.57f, 0.56f));
+        //points.Add(new Point(2.17f, -1.99f));
+        //points.Add(new Point(-0.25f, -2.83f));
+        //points.Add(new Point(-0.25f, 0.64f));
+        //points.Add(new Point(4.48f, 1.01f));
+        //points.Add(new Point(3.97f, -2.73f));
+        //points.Add(new Point(3.89f, -0.03f));
 
         buttonText.text = "Start";
         statusText.text = "";
@@ -125,7 +136,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
 
         invertedPoints = ReflectAboutOrigin(points);*/
 
-        StartCoroutine(WaitForPoints());
+        //StartCoroutine(WaitForPoints());
 
         /*List<Point> maxMinPoints = findMaxMinX(points);
 
@@ -178,9 +189,14 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         if (buttonClicks > 0)
             buttonText.text = "Next";
 
-        nextButton.interactable= isButtonClickAllowed;
+        nextButton.interactable = isButtonClickAllowed && points.Count>=3;
+        skipButton.interactable = nextButton.interactable;
+
+        if (isAddingPointsByClickingAllowed && !IsPointerOverUIObject(Input.mousePosition))
+            AddPointsByClickingAllowed();
+
     }
-    IEnumerator WaitForPoints()
+    /*IEnumerator WaitForPoints()
     {
         while (!arePointsEntered)
         {
@@ -190,7 +206,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         ksStack.Push(new KsStackObject(invertedPoints, false));
         ksStack.Push(new KsStackObject(points, true));
         isButtonClickAllowed = true;
-    }
+    }*/
 
     private GameObject DrawLine(Point startPoint1, Point endPoint1, Material material, float width)
     {
@@ -511,14 +527,14 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             edges.Add(bridge);
             if (isUpperHull)
             {
-                DrawLine(bridge.point1, bridge.point2, hullMaterial, width);
+                kpsEdgeLines.Add(DrawLine(bridge.point1, bridge.point2, hullMaterial, width));
                 edges.Add(bridge);
                 UpdateBridge(bridge);
             }
             else
             {
                 Edge lb = ReflectAboutOrigin(bridge);
-                DrawLine(lb.point1, lb.point2, hullMaterial, width);
+                kpsEdgeLines.Add(DrawLine(lb.point1, lb.point2, hullMaterial, width));
                 edges.Add(lb);
                 UpdateBridge(lb);
             }
@@ -623,6 +639,11 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             Point p1 = pairs[i].point1;
             Point p2 = pairs[i].point2;
 
+            if (p1.x == p2.x && p1.y == p2.y)
+            {
+                continue;
+            }
+
             float slopeVal = (float)(p1.y - p2.y) / (p1.x - p2.x);
             if (slopeVal < medianK)
             {
@@ -698,14 +719,14 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             edges.Add(bridge);
             if (isUpperHull)
             {
-                DrawLine(bridge.point1, bridge.point2, hullMaterial, width);
+                kpsEdgeLines.Add(DrawLine(bridge.point1, bridge.point2, hullMaterial, width));
                 edges.Add(bridge);
                 UpdateBridge(bridge);
             }
             else
             {
                 Edge lb = ReflectAboutOrigin(bridge);
-                DrawLine(lb.point1, lb.point2, hullMaterial, width);
+                kpsEdgeLines.Add(DrawLine(lb.point1, lb.point2, hullMaterial, width));
                 edges.Add(lb);
                 UpdateBridge(lb);
             }
@@ -821,11 +842,6 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         {
             Point p1 = pairs[i].point1;
             Point p2 = pairs[i].point2;
-
-            if (p1.x == p2.x && p1.y == p2.y)
-            {
-                continue;
-            }
 
             if (p1.x == p2.x)
             {
@@ -1224,17 +1240,12 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         return crossProd;
     }
 
-    private float temp_x = -9999, temp_y = -9999;
+    private float temp_x = int.MinValue, temp_y = int.MinValue;
     string str = "";
     public void InitializePoints(int value)
     {
-        if (value == -9999)
-        {
-            arePointsEntered = true;
-            return;
-        }
         str += value.ToString() + " ";
-        if (temp_x == -9999)
+        if (temp_x == int.MinValue)
             temp_x = value;
         else
         {
@@ -1242,8 +1253,8 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             points.Add(new Point(temp_x / 100, temp_y / 100));
             Debug.Log("(" + temp_x / 100 + "," + temp_y / 100 + ")");
             Instantiate(pointPrefab, new Vector3(temp_x / 100, temp_y / 100, 0), Quaternion.identity);
-            temp_x = -9999;
-            temp_y = -9999;
+            temp_x = int.MinValue;
+            temp_y = int.MinValue;
         }
     }
     private void setStatus(string str)
@@ -1259,6 +1270,16 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     bool isLeftActive = true;
     public void OnButtonClick()
     {
+        if (!hasStackBeenInitialized)
+        {
+            hasStackBeenInitialized = true;
+            isAddingPointsByClickingAllowed = false;
+
+            invertedPoints = ReflectAboutOrigin(points);
+            ksStack.Push(new KsStackObject(invertedPoints, false));
+            ksStack.Push(new KsStackObject(points, true));
+            isButtonClickAllowed = true;
+        }
         if (!isButtonClickAllowed)
         {
             return;
@@ -1354,12 +1375,12 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
                 //animator.SetBool("focusLeft", true);
                 if (stackObject.isUpperHull)
                 {
-                    DrawLine(stackObject.points[0], stackObject.points[1], hullMaterial, width);
+                    kpsEdgeLines.Add(DrawLine(stackObject.points[0], stackObject.points[1], hullMaterial, width));
                     edges.Add(new Edge(stackObject.points[0], stackObject.points[1]));
                 }
                 else
                 {
-                    DrawLine(ReflectAboutOrigin(stackObject.points[0]), ReflectAboutOrigin(stackObject.points[1]), hullMaterial, width);
+                    kpsEdgeLines.Add(DrawLine(ReflectAboutOrigin(stackObject.points[0]), ReflectAboutOrigin(stackObject.points[1]), hullMaterial, width));
                     edges.Add(new Edge(ReflectAboutOrigin(stackObject.points[0]), ReflectAboutOrigin(stackObject.points[1])));
                 }
                 ksStack.Pop();
@@ -1478,7 +1499,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             if (!stackObject.isUpperHull)
                medianX *= -1;
 
-            GameObject newLine = DrawLine1(new Point(medianX, 10), new Point(medianX, -10), lineMaterial, width);
+            GameObject newLine = DrawLine1(new Point(medianX, 13), new Point(medianX, -13), lineMaterial, width);
             lineGameObjects.Add(newLine);
 
             setStatus("The median line is x = " + medianX);
@@ -1710,38 +1731,46 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     }
     void endAlgo()
     {
-        PairPointsIndices pupper = findMinMaxX(points);
-        PairPointsIndices plower = findMinMaxX(invertedPoints);
-
-        Point pmin = pupper.points[0];
-        Point pmax = pupper.points[1];
-
-        Point pmin1 = plower.points[0];
-        Point pmax1 = plower.points[1];
-
-        Point pmin2 = ReflectAboutOrigin(pmax1);
-        Point pmax2 = ReflectAboutOrigin(pmin1);
-
-        pmin1 = pmin2;
-        pmax1 = pmax2;
-
-        if (pmin.x != pmin1.x || pmin.y != pmin1.y)
+        List<Point> hullPoints = new List<Point>();
+        if (!wasKpsSkipped)
         {
-            edges.Add(new Edge(pmin, pmin1));
-            DrawLine(pmin, pmin1, hullMaterial, width);
-        }
-        if (pmax.x != pmax1.x || pmax.y != pmax1.y)
-        {
-            edges.Add(new Edge(pmax, pmax1));
-            DrawLine(pmax, pmax1, hullMaterial, width);
-        }
+            PairPointsIndices pupper = findMinMaxX(points);
+            PairPointsIndices plower = findMinMaxX(invertedPoints);
 
-        List<Point>hullPoints= new List<Point>();
-        foreach(Edge e in edges)
-        {
-            hullPoints.Add(e.point1);
-            hullPoints.Add(e.point2);
+            Point pmin = pupper.points[0];
+            Point pmax = pupper.points[1];
+
+            Point pmin1 = plower.points[0];
+            Point pmax1 = plower.points[1];
+
+            Point pmin2 = ReflectAboutOrigin(pmax1);
+            Point pmax2 = ReflectAboutOrigin(pmin1);
+
+            pmin1 = pmin2;
+            pmax1 = pmax2;
+
+            if (pmin.x != pmin1.x || pmin.y != pmin1.y)
+            {
+                edges.Add(new Edge(pmin, pmin1));
+                kpsEdgeLines.Add(DrawLine(pmin, pmin1, hullMaterial, width));
+            }
+            if (pmax.x != pmax1.x || pmax.y != pmax1.y)
+            {
+                edges.Add(new Edge(pmax, pmax1));
+                kpsEdgeLines.Add(DrawLine(pmax, pmax1, hullMaterial, width));
+            }
+
+            foreach (Edge e in edges)
+            {
+                hullPoints.Add(e.point1);
+                hullPoints.Add(e.point2);
+            }
         }
+        else
+        {
+            hullPoints = directlyComputedHullPoints;
+        }
+        
         UpdateHull(hullPoints);
         animator.SetBool("focusLeft", false);
         animator.SetBool("focusRight", false);
@@ -1755,6 +1784,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         setStatus("Convex Hull Complete");
         Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
         nextButton.gameObject.SetActive(false);
+        skipButton.gameObject.SetActive(false);
     }
     void UpdateSubproblem(List<Point> points)
     {
@@ -1872,5 +1902,101 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     {
         string currentSceneName = SceneManager.GetActiveScene().name;
         SceneManager.LoadScene(currentSceneName);
+    }
+    void AddPointsByClickingAllowed()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+
+            float roundedX = Mathf.Round(mousePosition.x * 100f) / 100f;
+            float roundedY = Mathf.Round(mousePosition.y * 100f) / 100f;
+
+            if (!points.Exists(p => p.x == roundedX && p.y == roundedY))
+            {
+                Debug.Log("Adding Point ("+ roundedX + ","+ roundedY);
+                points.Add(new Point(roundedX, roundedY));
+                Instantiate(pointPrefab, new Vector3(roundedX, roundedY, 0), Quaternion.identity);
+            }
+            else
+            {
+                Debug.Log("Redundant Point");
+            }
+        }
+    }
+    bool IsPointerOverUIObject(Vector2 touchPosition)
+    {
+        PointerEventData eventDataCurrentPosition = new PointerEventData(EventSystem.current);
+        eventDataCurrentPosition.position = new Vector2(touchPosition.x, touchPosition.y);
+
+        var results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventDataCurrentPosition, results);
+
+        return results.Count > 0;
+    }
+    public void OnSkip()
+    {
+        wasKpsSkipped = true;
+        ComputeConvexHullDirectly();
+        foreach(GameObject ob in kpsEdgeLines)
+        {
+            Destroy(ob);
+        }
+        foreach (GameObject lineObject in lineGameObjects)
+        {
+            Destroy(lineObject);
+        }
+        endAlgo();
+    }
+    private void ComputeConvexHullDirectly()
+    {
+        if (points.Count < 3)
+            return;
+
+        int leftmostIndex = 0;
+        for (int i = 1; i < points.Count; i++)
+        {
+            if (points[i].x < points[leftmostIndex].x)
+                leftmostIndex = i;
+        }
+
+        int currentIndex = leftmostIndex;
+        int nextIndex;
+        do
+        {
+            directlyComputedHullPoints.Add(points[currentIndex]);
+
+            nextIndex = (currentIndex + 1) % points.Count;
+
+            for (int i = 0; i < points.Count; i++)
+            {
+                if (pointPosition(points[currentIndex], points[i], points[nextIndex]) > 0)
+                {
+                    nextIndex = i;
+                }
+            }
+
+            currentIndex = nextIndex;
+
+        } while (currentIndex != leftmostIndex);
+
+        DrawDirectlyComputedHull();
+    }
+    void DrawDirectlyComputedHull()
+    {
+        GameObject lineObject = new GameObject("Hull");
+        LineRenderer lineRenderer = lineObject.AddComponent<LineRenderer>();
+
+        lineRenderer.material = hullMaterial;
+        lineRenderer.startWidth = width;
+        lineRenderer.endWidth = width;
+        lineRenderer.sortingOrder = 10;
+        lineRenderer.positionCount = directlyComputedHullPoints.Count;
+        for (int i = 0; i < directlyComputedHullPoints.Count; i++)
+        {
+            Point p = directlyComputedHullPoints[i];
+            lineRenderer.SetPosition(i, new Vector3(p.x, p.y, 0));
+        }
+        lineRenderer.loop = true;
     }
 }
