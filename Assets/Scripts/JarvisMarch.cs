@@ -66,7 +66,7 @@ public class JarvisMarch : MonoBehaviour
     }
     private void Update()
     {
-        nextButton.interactable = isButtonClickAllowed && points.Count>=3;
+        nextButton.interactable = isButtonClickAllowed && points.Count>=2;
         skipButton.interactable = nextButton.interactable;
         if (clickNumber > 0)
         {
@@ -217,6 +217,22 @@ public class JarvisMarch : MonoBehaviour
             }
             //targetGroupAllPoints.GetComponent<TargetGroupAllPoints>().UpdatePoints();
             UpdateAllPoints(points);
+
+            if(points.Count == 2)
+            {
+                DrawLine(points[0], points[1], hullMaterial, width);
+                foreach(Point p in points)
+                {
+                    if (!hullList.Contains(p))
+                    {
+                        hullList.Add(p);
+                    }
+                    Instantiate(bigPointPrefab, new Vector3(p.x, p.y, 0), Quaternion.identity);
+                }
+                UpdateHull(hullList);
+                endAlgo();
+                return;
+            }
         }
         if(clickNumber%4==0)
         {
@@ -366,14 +382,23 @@ public class JarvisMarch : MonoBehaviour
     string str = "";
     public void InitializePoints(int value)
     {
+        if (!isAddingPointsByClickingAllowed)
+            return;
+
         str += value.ToString() + " ";
         if (temp_x == -9999)
             temp_x = value;
         else
         {
             temp_y = value;
-            points.Add(new Point(temp_x/100, temp_y/100));
-            Debug.Log("(" + temp_x / 100 + "," + temp_y / 100 + ")");
+            if (!points.Exists(p => p.x == (temp_x / 100) && p.y == (temp_y / 100)) && ((temp_x / 100) >= -25f) && ((temp_x / 100) <= 25f)
+                && ((temp_y / 100) <= 10f && ((temp_y / 100) >= -10f)))
+            {
+                points.Add(new Point(temp_x / 100, temp_y / 100));
+                Debug.Log("(" + temp_x / 100 + "," + temp_y / 100 + ")");
+            }
+            else
+                Debug.Log("Invalid Point " + "(" + temp_x / 100 + "," + temp_y / 100 + ")");
             Instantiate(pointPrefab, new Vector3(temp_x/100, temp_y/100, 0), Quaternion.identity);
             temp_x = -9999;
             temp_y = -9999;
@@ -383,6 +408,7 @@ public class JarvisMarch : MonoBehaviour
     List<GameObject>kpsEdgeLines = new List<GameObject>();
     public void OnSkip()
     {
+        isAddingPointsByClickingAllowed = false;
         wasKpsSkipped = true;
         ComputeConvexHullDirectly();
         foreach (GameObject ob in kpsEdgeLines)
@@ -394,9 +420,6 @@ public class JarvisMarch : MonoBehaviour
     List<Point> directlyComputedHullPoints = new List<Point>();
     private void ComputeConvexHullDirectly()
     {
-        if (points.Count < 3)
-            return;
-
         int leftmostIndex = 0;
         for (int i = 1; i < points.Count; i++)
         {

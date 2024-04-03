@@ -189,7 +189,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         if (buttonClicks > 0)
             buttonText.text = "Next";
 
-        nextButton.interactable = isButtonClickAllowed && points.Count>=3;
+        nextButton.interactable = isButtonClickAllowed && points.Count>=2;
         skipButton.interactable = nextButton.interactable;
 
         if (isAddingPointsByClickingAllowed && !IsPointerOverUIObject(Input.mousePosition))
@@ -524,7 +524,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
 
             isButtonClickAllowed = true;
 
-            edges.Add(bridge);
+            //edges.Add(bridge);
             if (isUpperHull)
             {
                 kpsEdgeLines.Add(DrawLine(bridge.point1, bridge.point2, hullMaterial, width));
@@ -716,7 +716,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             bridge =  new Edge(pk, pm);
             isButtonClickAllowed = true;
 
-            edges.Add(bridge);
+            //edges.Add(bridge);
             if (isUpperHull)
             {
                 kpsEdgeLines.Add(DrawLine(bridge.point1, bridge.point2, hullMaterial, width));
@@ -1244,14 +1244,23 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     string str = "";
     public void InitializePoints(int value)
     {
+        if (!isAddingPointsByClickingAllowed)
+            return;
+
         str += value.ToString() + " ";
         if (temp_x == int.MinValue)
             temp_x = value;
         else
         {
             temp_y = value;
-            points.Add(new Point(temp_x / 100, temp_y / 100));
-            Debug.Log("(" + temp_x / 100 + "," + temp_y / 100 + ")");
+            if (!points.Exists(p => p.x == (temp_x / 100) && p.y == (temp_y / 100)) && ((temp_x / 100) >= -25f) && ((temp_x / 100) <= 25f)
+                && ((temp_y / 100) <= 10f && ((temp_y / 100) >= -10f)))
+            {
+                points.Add(new Point(temp_x / 100, temp_y / 100));
+                Debug.Log("(" + temp_x / 100 + "," + temp_y / 100 + ")");
+            }
+            else
+                Debug.Log("Invalid Point "+ "(" + temp_x / 100 + "," + temp_y / 100 + ")");
             Instantiate(pointPrefab, new Vector3(temp_x / 100, temp_y / 100, 0), Quaternion.identity);
             temp_x = int.MinValue;
             temp_y = int.MinValue;
@@ -1268,6 +1277,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     List<GameObject>pointGameObjects= new List<GameObject>();
     List<GameObject>lineGameObjects= new List<GameObject>();
     bool isLeftActive = true;
+    bool isFirstSubproblem = true;
     public void OnButtonClick()
     {
         if (!hasStackBeenInitialized)
@@ -1279,6 +1289,14 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             ksStack.Push(new KsStackObject(invertedPoints, false));
             ksStack.Push(new KsStackObject(points, true));
             isButtonClickAllowed = true;
+
+            if(points.Count == 2)
+            {
+                edges.Add(new Edge(points[0], points[1]));
+                DrawLine(points[0], points[1], hullMaterial, width);
+                endAlgo();
+                return;
+            }
         }
         if (!isButtonClickAllowed)
         {
@@ -1436,7 +1454,13 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
                 baseLine = DrawLine1(pmin, pmax, lineMaterial, width);
             else
                 baseLine = DrawLine1(ReflectAboutOrigin(pmin), ReflectAboutOrigin(pmax), lineMaterial, width);
-            setStatus("At the start, we find Xmax and Xmin");
+            if (isFirstSubproblem)
+            {
+                setStatus("At the start, we find Xmax and Xmin");
+                isFirstSubproblem= false;
+            }
+            else
+                setStatus("For the next sub-problem, we find Xmax and Xmin");
 
             animator.SetBool("focusDuplicate", false);
             if(stackObject.isUpperHull)
@@ -1593,6 +1617,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         buttonClicks++;
     }
 
+    List<GameObject> tempPointGameObjects = new List<GameObject>();
     IEnumerator DivideIntoSubproblems(List<Point>S_left, List<Point>S_right, List<Point>allPoints, bool isupperHull)
     {
         if (isupperHull)
@@ -1611,7 +1636,6 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             if(ob != null)
                 ob.GameObject().SetActive(false);
         }
-        List<GameObject>tempPointGameObjects = new List<GameObject>();
 
         if (S_left.Count > 0)
         {
@@ -1770,6 +1794,26 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         {
             hullPoints = directlyComputedHullPoints;
         }
+
+        foreach(GameObject ob in tempPointGameObjects)
+        {
+            if(ob != null)
+            {
+                Destroy(ob);
+            }
+        }
+        foreach (GameObject ob in pointGameObjects)
+        {
+            if (ob != null)
+            {
+                Destroy(ob);
+            }
+        }
+
+        foreach (Point p in hullPoints)
+        {
+            Instantiate(bigPointPrefab, new Vector3(p.x, p.y, 0), Quaternion.identity);
+        }
         
         UpdateHull(hullPoints);
         animator.SetBool("focusLeft", false);
@@ -1777,10 +1821,10 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         animator.SetBool("focusBridge", false);
         animator.SetBool("focusHull", true);
 
-        foreach (Point p in points)
+        /*foreach (Point p in points)
         {
             Instantiate(bigPointPrefab, new Vector3(p.x, p.y, 0), Quaternion.identity);
-        }
+        }*/
         setStatus("Convex Hull Complete");
         Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
         nextButton.gameObject.SetActive(false);
@@ -1936,6 +1980,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     }
     public void OnSkip()
     {
+        isAddingPointsByClickingAllowed = false;
         wasKpsSkipped = true;
         ComputeConvexHullDirectly();
         foreach(GameObject ob in kpsEdgeLines)
@@ -1950,9 +1995,6 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     }
     private void ComputeConvexHullDirectly()
     {
-        if (points.Count < 3)
-            return;
-
         int leftmostIndex = 0;
         for (int i = 1; i < points.Count; i++)
         {
