@@ -187,6 +187,7 @@ public class JarvisMarch : MonoBehaviour
 
     int nextIndex = lastPointIndex;
     bool hasStartBeenClicked = false;
+    GameObject tempLine= null;
     public void OnButtonClick()
     {
         if(!hasStartBeenClicked)
@@ -234,7 +235,7 @@ public class JarvisMarch : MonoBehaviour
                 return;
             }
         }
-        if(clickNumber%4==0)
+        if(clickNumber%3==0)
         {
             animator.SetBool("focusAll", false);
             animator.SetBool("focusLastPoint", false);
@@ -245,7 +246,7 @@ public class JarvisMarch : MonoBehaviour
             else
                 setStatus("The last point Q added to the hull is our starting point P for the next iteration.", points[lastPointIndex]);
         }
-        else if(clickNumber%4==1)
+        else if(clickNumber%3==1)
         {
             animator.SetBool("focusFirstPoint", false);
             animator.SetBool("focusLastPoint", false);
@@ -268,29 +269,38 @@ public class JarvisMarch : MonoBehaviour
             statusText.text = "We find the point Q such that there is no other point R in the set of points such that PQR is anticlockwise.";
             FindNextPoint(lastPointIndex, nextPointIndex);
         }
-        else if (clickNumber % 4 == 2)
+        else if (clickNumber % 3 == 2)
         {
+            isButtonClickAllowed = false;
             animator.SetBool("focusAll", false);
             animator.SetBool("focusFirstPoint", false);
             animator.SetBool("focusHull", false);
             animator.SetBool("focusLastPoint", true);
             setStatus("This is the valid point Q.", points[nextIndex]);
-        }
-        else if(clickNumber%4==3)
-        {
-            animator.SetBool("focusAll", false);
-            animator.SetBool("focusFirstPoint", false);
-            animator.SetBool("focusLastPoint", false);
-            animator.SetBool("focusHull", true);
-            kpsEdgeLines.Add(DrawLine(points[lastPointIndex], points[nextIndex], hullMaterial, width));
-            lastPointIndex = nextIndex;
-            setStatus("We add the edge PQ to our convex hull.", points[lastPointIndex]);
-            if(lastPointIndex == startPointIndex)
-            {
-                endAlgo();
-            }
+            StartCoroutine(ShowHull());
         }
         clickNumber++;
+    }
+
+    IEnumerator ShowHull()
+    {
+        yield return new WaitForSeconds(1.5f);
+
+        animator.SetBool("focusAll", false);
+        animator.SetBool("focusFirstPoint", false);
+        animator.SetBool("focusLastPoint", false);
+        animator.SetBool("focusHull", true);
+        if (tempLine != null)
+            Destroy(tempLine);
+        kpsEdgeLines.Add(DrawLine(points[lastPointIndex], points[nextIndex], hullMaterial, width));
+        lastPointIndex = nextIndex;
+        setStatus("We add the edge PQ to our convex hull.", points[lastPointIndex]);
+        if (lastPointIndex == startPointIndex)
+        {
+            endAlgo();
+        }
+
+        isButtonClickAllowed = true;
     }
 
     public GameObject DrawLine(Point startPoint1, Point endPoint1, Material material, float width)
@@ -302,6 +312,22 @@ public class JarvisMarch : MonoBehaviour
         lineRenderer.startWidth = width;
         lineRenderer.endWidth = width;
         lineRenderer.sortingOrder = 10;
+
+        Vector3[] positions = { new Vector3(startPoint1.x, startPoint1.y, 0), new Vector3(endPoint1.x, endPoint1.y, 0) };
+        lineRenderer.positionCount = positions.Length;
+        lineRenderer.SetPositions(positions);
+
+        return lineObject;
+    }
+    public GameObject DrawLine1(Point startPoint1, Point endPoint1, Material material, float width)
+    {
+        GameObject lineObject = new GameObject("Line");
+        LineRenderer lineRenderer = lineObject.AddComponent<LineRenderer>();
+
+        lineRenderer.material = material;
+        lineRenderer.startWidth = width;
+        lineRenderer.endWidth = width;
+        lineRenderer.sortingOrder = 5;
 
         Vector3[] positions = { new Vector3(startPoint1.x, startPoint1.y, 0), new Vector3(endPoint1.x, endPoint1.y, 0) };
         lineRenderer.positionCount = positions.Length;
@@ -345,7 +371,6 @@ public class JarvisMarch : MonoBehaviour
                 yield return StartCoroutine(DrawEdgesWithDelay(prevPointIndex, nextPointIndex));
                 yield break; // Exit the loop if a suitable C is found
             }
-            
             Destroy(line2); // Destroy the edge between B and C if it's not suitable
         }
         nextIndex = nextPointIndex;
@@ -358,6 +383,7 @@ public class JarvisMarch : MonoBehaviour
             UpdateHull(hullList);
         }
         isButtonClickAllowed = true;
+        tempLine = DrawLine1(points[lastPointIndex], points[nextPointIndex], prospectMaterial, width);
 
         Destroy(line1); // Destroy the edge between A and B
     }
