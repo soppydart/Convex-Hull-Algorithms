@@ -2233,6 +2233,7 @@ MonoBehaviour:
   lineMaterial: {fileID: 2100000, guid: 67e177b33ec619b459026ae194dd753f, type: 2}
   tempMaterial: {fileID: 2100000, guid: 233a16117276e6147b8be6c76e8ac43d, type: 2}
   tempMaterial1: {fileID: 2100000, guid: 24766aa440f579d4db57afef53a40bb8, type: 2}
+  tempMaterial2: {fileID: 2100000, guid: 1da77db193da5f74e86df3e2e4183c63, type: 2}
   width: 0.1
   statusText: {fileID: 108371166}
   buttonText: {fileID: 1022151297}

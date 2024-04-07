@@ -75,6 +75,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
     [SerializeField] Material lineMaterial;
     [SerializeField] Material tempMaterial;
     [SerializeField] Material tempMaterial1;
+    [SerializeField] Material tempMaterial2;
     [SerializeField] float width = 0.1f;
     [SerializeField] TMP_Text statusText;
     [SerializeField] TMP_Text buttonText;
@@ -630,6 +631,38 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         }
 
         float medianK = findMedian(K);
+
+
+        Point maxYinterceptPoint = points[0];
+        float maxYintercept = int.MinValue;
+        // draw all lines with a particular slope
+        yield return new WaitForSeconds(0.2f);
+        foreach(GameObject ob in plottedLines)
+        {
+            Destroy(ob);
+        }
+
+        foreach(Point p in points)
+        {
+            float c = p.y - medianK* p.x;
+            float startX = -25f;
+            float startY = medianK * startX + c;
+
+            float endX = 25f;
+            float endY = medianK * endX + c;
+
+            if(c > maxYintercept)
+            {
+                maxYintercept = c;
+                maxYinterceptPoint = p;
+            }
+
+            if(isUpperHull)
+                plottedLines.Add(DrawLine1(new Point(startX, startY), new Point(endX, endY), tempMaterial1, width / 2.0f));
+            else
+                plottedLines.Add(DrawLine1(new Point(-startX, -startY), new Point(-endX, -endY), tempMaterial1, width / 2.0f));
+        }
+
         List<Edge> smaller = new List<Edge>();
         List<Edge> equal = new List<Edge>();
         List<Edge> larger = new List<Edge>();
@@ -671,18 +704,28 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
                 maximumIntercept = y - medianK * x;
             }
         }
-        /*
-         * 
-        yield return new WaitForSeconds(0.2f);
+        // Drawing line with max y-Intercept
+
+        yield return new WaitForSeconds(0.4f);
         foreach(GameObject ob in plottedLines)
         {
             Destroy(ob);
         }
 
-        foreach(Point p in candidates)
-        {
+        float c1 = maxYinterceptPoint.y - medianK * maxYinterceptPoint.x;
+        float startX1 = -25f;
+        float startY1 = medianK * startX1 + c1;
 
-        }*/
+        float endX1 = 25f;
+        float endY1 = medianK * endX1 + c1;
+
+        if(isUpperHull)
+            plottedLines.Add(DrawLine1(new Point(startX1, startY1), new Point(endX1, endY1), tempMaterial2, width / 2.0f));
+        else
+            plottedLines.Add(DrawLine1(new Point(-startX1, -startY1), new Point(-endX1, -endY1), tempMaterial2, width / 2.0f));
+
+
+
 
         Point pk = new Point(int.MaxValue, int.MaxValue);
         Point pm = new Point(int.MinValue, int.MinValue);
@@ -705,7 +748,7 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
             }
         }
 
-        yield return new WaitForSeconds(0.2f);
+        yield return new WaitForSeconds(0.4f);
         if(isUpperHull)
             plottedLines.Add(DrawLine1(pk, pm, lineMaterial, width));
         else
@@ -715,6 +758,12 @@ public class KirkpatrickSeidelConvexHull : MonoBehaviour
         {
             bridge =  new Edge(pk, pm);
             isButtonClickAllowed = true;
+
+            foreach (GameObject ob in plottedLines)
+            {
+                if(ob != null)
+                Destroy(ob);
+            }
 
             //edges.Add(bridge);
             if (isUpperHull)
