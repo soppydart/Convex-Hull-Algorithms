@@ -1,19 +1,27 @@
 # Convex Hull Algorithms
 
-<div style="text-align: center;">
+<p align="center">
 
-[![Unity](https://img.shields.io/badge/Unity-2022.3.20f1-red?logo=unity)](https://docs.unity3d.com/Manual/index.html)
-[![C#](https://img.shields.io/badge/C%23-9.0-blue?logo=csharp)](https://docs.microsoft.com/en-us/dotnet/csharp/)
-[![Cinemachine](https://img.shields.io/badge/Cinemachine-2.9.7-purple)](https://docs.unity3d.com/Packages/com.unity.cinemachine@2.9/manual/index.html)
-[![TextMeshPro](https://img.shields.io/badge/TextMeshPro-3.0.6-green)](https://docs.unity3d.com/Packages/com.unity.textmeshpro@3.0/manual/index.html)
+<a href="https://docs.unity3d.com/Manual/index.html" alt="Unity">
+<img src="https://img.shields.io/badge/Unity-2022.3.20f1-red?logo=unity" /></a>
 
-</div>
+<a href="https://docs.microsoft.com/en-us/dotnet/csharp/" alt="C#">
+<img src="https://img.shields.io/badge/C%23-9.0-blue?logo=csharp" /></a>
 
-<div style="text-align: center;">
+<a href="https://docs.unity3d.com/Packages/com.unity.cinemachine@2.9/manual/index.html" alt="Cinemachine">
+<img src="https://img.shields.io/badge/Cinemachine-2.9.7-purple" /></a>
 
-[![License](https://img.shields.io/badge/license-GPL%203.0-blue.svg)](LICENSE)
+<a href="https://docs.unity3d.com/Packages/com.unity.textmeshpro@3.0/manual/index.html" alt="TextMeshPro">
+<img src="https://img.shields.io/badge/TextMeshPro-3.0.6-green" /></a>
 
-</div>
+</p>
+
+<p align="center">
+
+<a href="LICENSE" alt="License">
+<img src="https://img.shields.io/badge/license-GPL%203.0-blue.svg" /></a>
+
+</p>
 
 A Unity application for visualizing the working of two convex hull algorithms - [Jarvis March](https://en.wikipedia.org/wiki/Gift_wrapping_algorithm) and [Kirkpatrick-Seidel](https://graphics.stanford.edu/courses/cs268-16-fall/Notes/KirkSeidel.pdf) in two dimensions.
 
