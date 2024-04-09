@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections;
-using Unity.VisualScripting;
-using UnityEngine.Experimental.GlobalIllumination;
 using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 
@@ -28,7 +26,6 @@ public class JarvisMarch : MonoBehaviour
     private bool isAddingPointsByClickingAllowed = true;
 
 
-    // Define a point class representing 2D pointsa
     public class Point
     {
         public float x;
@@ -41,17 +38,13 @@ public class JarvisMarch : MonoBehaviour
         }
     }
 
-    // List to store all points
     private List<Point> points = new List<Point>();
-    public List<Vector2> pointList = new List<Vector2>();
 
     private List<int> hull = new List<int>();
     public List<Point> hullList = new List<Point>();    
 
-    // LineRenderer component for drawing the convex hull
     private LineRenderer lineRenderer;
 
-    // Index of the current edge being drawn
     private static int lastPointIndex = 0;
     private Point lastPoint = new Point(0, 0);
     private Point startPoint = new Point(0, 0);
@@ -85,8 +78,6 @@ public class JarvisMarch : MonoBehaviour
     }
     void Start()
     {
-        //DrawLine(new Point(0, 0), new Point(1, 1), hullMaterial, width*10);
-
         firstPointTransform = new GameObject("NewObject").transform;
         lastPointTransform = new GameObject("NewObject").transform;
 
@@ -94,96 +85,13 @@ public class JarvisMarch : MonoBehaviour
         statusText.text = "";
         buttonText.text = "Start";
 
-        // Create a LineRenderer component
         lineRenderer = gameObject.AddComponent<LineRenderer>();
 
-        // Set LineRenderer properties
         lineRenderer.startWidth = width;
         lineRenderer.endWidth = width;
         lineRenderer.material = hullMaterial;
         lineRenderer.positionCount = 0;
-
-        // Initialize points with fixed number (10) of points
-        /*for (int i = 0; i < 10; i++)
-        {
-            float randomX = UnityEngine.Random.Range(-6f, 6f);
-            float randomY = UnityEngine.Random.Range(-4f, 4f);
-            // Round the coordinates to two decimal places
-            randomX = Mathf.Round(randomX * 100f) / 100f;
-            randomY = Mathf.Round(randomY * 100f) / 100f;
-            points.Add(new Point(randomX, randomY));
-            Instantiate(pointPrefab, new Vector3(randomX, randomY, 0), Quaternion.identity);
-        }*/
-
-        //points.Add(new Point(-2, 2));
-        //points.Add(new Point(2, 2));
-        //points.Add(new Point(-2, -2));
-        //points.Add(new Point(2, -2));
-        //points.Add(new Point(0, 0));
-        //Debug.Log("Added points");
-        //arePointsEntered= true;
-
-        //for (int i=0;i<points.Count; i++)
-        //{
-        //    Debug.Log("Point " + i + " is " + points[i].x + "," + points[i].y);
-        //}
-
-        //StartCoroutine(WaitForPoints());
-
-        /*int leftmostIndex = 0;
-        for (int i = 1; i < points.Count; i++)
-        {
-            if (points[i].x < points[leftmostIndex].x)
-                leftmostIndex = i;
-        }
-
-        lastPoint = points[leftmostIndex];
-        lastPointIndex = leftmostIndex;
-        hull.Add(lastPointIndex);
-        hullList.Add(new Vector2(lastPoint.x, lastPoint.y));
-        targetGroupHull.GetComponent<TargetGroupHull>().UpdateHull();
-        isButtonClickAllowed = true;
-        startPoint = lastPoint;
-        startPointIndex = leftmostIndex;
-
-        foreach (Point point in points)
-        {
-            pointList.Add(new Vector2(point.x, point.y));
-        }
-        targetGroupAllPoints.GetComponent<TargetGroupAllPoints>().UpdatePoints();*/
     }
-
-    IEnumerator WaitForPoints()
-    {
-        // Keep yielding until the value changes
-        //while (!arePointsEntered)
-        //{
-            yield return null; // Yield until the next frame
-        //}
-    //statusText.text = str;
-
-    int leftmostIndex = 0;
-    for (int i = 1; i < points.Count; i++)
-    {
-        if (points[i].x < points[leftmostIndex].x)
-            leftmostIndex = i;
-    }
-
-    lastPoint = points[leftmostIndex];
-    lastPointIndex = leftmostIndex;
-    hull.Add(lastPointIndex);
-    //hullList.Add(new Vector2(lastPoint.x, lastPoint.y));
-    //targetGroupHull.GetComponent<TargetGroupHull>().UpdateHull();
-    isButtonClickAllowed = true;
-    startPoint = lastPoint;
-    startPointIndex = leftmostIndex;
-
-    foreach (Point point in points)
-    {
-        pointList.Add(new Vector2(point.x, point.y));
-    }
-    //targetGroupAllPoints.GetComponent<TargetGroupAllPoints>().UpdatePoints();
-}
 
     int nextIndex = lastPointIndex;
     bool hasStartBeenClicked = false;
@@ -206,17 +114,11 @@ public class JarvisMarch : MonoBehaviour
             lastPointIndex = leftmostIndex;
             hull.Add(lastPointIndex);
             hullList.Add(lastPoint);
-            //targetGroupHull.GetComponent<TargetGroupHull>().UpdateHull();
             UpdateHull(hullList);
             isButtonClickAllowed = true;
             startPoint = lastPoint;
             startPointIndex = leftmostIndex;
 
-            foreach (Point point in points)
-            {
-                pointList.Add(new Vector2(point.x, point.y));
-            }
-            //targetGroupAllPoints.GetComponent<TargetGroupAllPoints>().UpdatePoints();
             UpdateAllPoints(points);
 
             if(points.Count == 2)
@@ -379,7 +281,6 @@ public class JarvisMarch : MonoBehaviour
         {
             hull.Add(nextIndex);
             hullList.Add(points[nextIndex]);
-            //targetGroupHull.GetComponent<TargetGroupHull>().UpdateHull();
             UpdateHull(hullList);
         }
         isButtonClickAllowed = true;
@@ -397,9 +298,7 @@ public class JarvisMarch : MonoBehaviour
         animator.SetBool("focusLastPoint", false);
         animator.SetBool("focusHull", true);
 
-        //nextButton.interactable = false;
         statusText.text = "Convex Hull Complete";
-        //buttonText.text = "Restart";
         nextButton.gameObject.SetActive(false);
         skipButton.gameObject.SetActive(false);
         Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);

@@ -14,7 +14,6 @@ public class TargetGroupLastPoint : MonoBehaviour
         virtualCamera = GetComponent<CinemachineVirtualCamera>();
     }
 
-    // Optionally, you can update the follow target dynamically during runtime
     void Update()
     {
         followTarget = jarvisMarch.GetComponent<JarvisMarch>().lastPointTransform;
