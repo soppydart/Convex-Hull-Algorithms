@@ -16,14 +16,7 @@
 
 </p>
 
-<p align="center">
-
-<a href="LICENSE" alt="License">
-<img src="https://img.shields.io/badge/license-GPL%203.0-blue.svg" /></a>
-
-</p>
-
-A Unity application for visualizing the working of two convex hull algorithms - [Jarvis March](https://en.wikipedia.org/wiki/Gift_wrapping_algorithm) and [Kirkpatrick-Seidel](https://graphics.stanford.edu/courses/cs268-16-fall/Notes/KirkSeidel.pdf) in two dimensions.
+An application for visualizing the working of two convex hull algorithms - [Jarvis March](https://en.wikipedia.org/wiki/Gift_wrapping_algorithm) and [Kirkpatrick-Seidel](https://graphics.stanford.edu/courses/cs268-16-fall/Notes/KirkSeidel.pdf) in two dimensions.
 
 ## Table of Contents
 
@@ -40,7 +33,7 @@ A Unity application for visualizing the working of two convex hull algorithms - 
 
 ## About the Project
 
-This Unity project aims to visually demonstrate the workings of two convex hull algorithms: Jarvis March and Kirkpatrick-Seidel, originally as a part of [Assignment-I](https://convex-hull-visualization.vercel.app/about) for CS F364: Design and Analysis of Algorithms. 
+This project aims to visually demonstrate the workings of two convex hull algorithms: Jarvis March and Kirkpatrick-Seidel, originally as a part of [Assignment-I](https://convex-hull-visualization.vercel.app/about) for CS F364: Design and Analysis of Algorithms. 
 
 [Convex hull algorithms](https://en.wikipedia.org/wiki/Convex_hull_algorithms) are used to find the [convex hull](https://en.wikipedia.org/wiki/Convex_hull) of a set of points, which is the smallest convex set that encloses all the points and forms a convex polygon.
 
